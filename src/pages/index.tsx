@@ -2,35 +2,58 @@ import { formatColor, neutral } from '../theme'
 import { Box, Typography, useTheme } from '@mui/material'
 import { useWeb3Context } from '../components/libs/web3-data-provider/Web3Provider'
 import { ProtocolStatsCard } from '../components/util/cards'
-import { UsdiGraphCard } from '../components/util/cards/UsdiGraphCard'
 import { StatsMeter } from '../components/util/statsMeter'
 import { UserStats } from '../components/util/UserStats'
 import { useRolodexContext } from '../components/libs/rolodex-data-provider/RolodexDataProvider'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useVaultDataContext } from '../components/libs/vault-data-provider/VaultDataProvider'
-import { useAppGovernanceContext } from '../components/libs/app-governance-provider/AppGovernanceProvider'
-import { Governance } from './governance'
 import Cookies from 'universal-cookie'
 import fetchVaultOf from '../contracts/Vault/fetchVaultOf'
+import { getTotalSupply, getReserveRatioPercentage } from '../contracts/USDI'
+import { BN } from '../easy/bn'
+import { GweiBlockText, TitleText } from '../components/util/text'
+import { SingleStatCard } from '../components/util/cards'
+import { InverseButton } from '../components/util/button'
+import { TitleTextToolTip } from '../components/util/text/TitleTextToolTip'
+import {
+  useModalContext,
+  ModalType,
+} from '../components/libs/modal-content-provider/ModalContentProvider'
+import { OpenVaultButton } from '../components/util/button/OpenVaultButton'
+import { InterestRateGraphCard } from '../components/util/cards/InterestRateGraphCard'
+import { Substat } from '../components/util/text/Substat'
+import getAverages, { Averages } from '../components/util/api/getAverages'
+import { useLight } from '../hooks/useLight'
+import { UserIPTVault } from '../components/util/UserStats/UserIPTVault'
+import SVGBox from '../components/icons/misc/SVGBox'
+import { RedirectTo } from '../components/util/redirect'
+import getAPRs from '../contracts/USDI/getAPRs'
+import { Chains } from '../chain/chains'
 
 const Dashboard = () => {
   const cookies = new Cookies()
   const firstVisitExists = cookies.get('first-visit')
-  if (!firstVisitExists) {
-    console.log('detected first login')
-    return (
-      <div style={{ minHeight: '80vh' }}>
-        <meta http-equiv="refresh" content="0; url=#/landing" />
-        <a href="#/landing">please click here if you are not redirected</a>
-      </div>
-    )
-  }
+  if (!firstVisitExists) return <RedirectTo url="#/landing" />
 
+  const isLight = useLight()
+  const { setType } = useModalContext()
   const theme = useTheme()
-  const { currentAccount, dataBlock, gasPrice } = useWeb3Context()
+  const { currentAccount, dataBlock, chainId } = useWeb3Context()
   const rolodex = useRolodexContext()
-  const { setVaultID, setVaultAddress } = useVaultDataContext()
-  const { isApp } = useAppGovernanceContext()
+  const {
+    setVaultID,
+    setVaultAddress,
+    accountLiability,
+    hasVault,
+    borrowingPower,
+  } = useVaultDataContext()
+
+  const [totalSupply, setTotalSupply] = useState<string>('')
+  const [totalUSDCDeposited, setTotalUSDCDeposited] = useState<string>('')
+  const [reserveRatio, setReserveRatio] = useState('0')
+  const [borrowAPR, setBorrowAPR] = useState(0)
+  const [depositAPR, setDepositAPR] = useState(0)
+  const [averages, setAverages] = useState<Averages | undefined>()
 
   useEffect(() => {
     if (currentAccount && rolodex) {
@@ -43,6 +66,32 @@ const Dashboard = () => {
     }
   }, [currentAccount, rolodex])
 
+  useEffect(() => {
+    if (rolodex && rolodex.USDC && rolodex.addressUSDI) {
+      rolodex.USDC.balanceOf(rolodex.addressUSDI).then((val) => {
+        setTotalUSDCDeposited(val.div(BN('1e6')).toLocaleString())
+      })
+
+      getTotalSupply(rolodex).then(setTotalSupply)
+      getReserveRatioPercentage(rolodex).then(setReserveRatio)
+    }
+
+    if (rolodex) {
+      getAPRs(rolodex)
+        .then(({ borrow, deposit }) => {
+          setBorrowAPR(borrow)
+          setDepositAPR(deposit)
+        })
+        .catch(() => {
+          setBorrowAPR(0)
+          setDepositAPR(0)
+        })
+    }
+    if (Chains[chainId]) {
+      getAverages(Chains[chainId].analytics).then((averages) => setAverages(averages))
+    }
+  }, [rolodex, dataBlock, chainId])
+
   return (
     <Box
       sx={{
@@ -51,74 +100,244 @@ const Dashboard = () => {
         overflow: 'hidden',
       }}
     >
-      {isApp ? (
+      <Box
+        color={formatColor(neutral.black)}
+        textAlign="left"
+        maxWidth="xl"
+        pt={{ xs: 2, sm: 0 }}
+        pb={{ xs: 5, sm: 10 }}
+        px={{ xs: 2, md: 10 }}
+        margin="auto"
+        position="relative"
+        sx={{
+          [theme.breakpoints.down('md')]: {
+            mb: 0,
+            marginLeft: 'auto',
+          },
+        }}
+      >
         <Box
-          color={formatColor(neutral.black)}
-          textAlign="left"
-          maxWidth="xl"
-          pt={{ xs: 7, sm: 0 }}
-          pb={{ xs: 5, sm: 10 }}
-          px={{ xs: 2, md: 10 }}
-          margin="auto"
-          position="relative"
           sx={{
-            [theme.breakpoints.down('md')]: {
-              mb: 0,
-              marginLeft: 'auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 2,
+            my: 3,
+            [theme.breakpoints.down('lg')]: {
+              flexDirection: 'column',
             },
           }}
         >
+          <SingleStatCard>
+            <>
+              <SVGBox
+                svg_name={`globe_${isLight ? 'light' : 'dark'}`}
+                width={36}
+                height={36}
+                sx={{ mr: 3 }}
+              />
+
+              <TitleText
+                title="USDi in Circulation"
+                text={Math.round(Number(totalSupply)).toLocaleString()}
+              />
+            </>
+          </SingleStatCard>
+
+          <SingleStatCard>
+            <>
+              <SVGBox
+                svg_name={`cube_${isLight ? 'light' : 'dark'}`}
+                width={36}
+                height={36}
+                sx={{ mr: 3 }}
+              />
+
+              <TitleText
+                title="USDC in Reserve"
+                text={Math.round(Number(totalUSDCDeposited)).toLocaleString()}
+              />
+            </>
+          </SingleStatCard>
+          <SingleStatCard>
+            <>
+              <SVGBox
+                svg_name={`cylinder_${isLight ? 'light' : 'dark'}`}
+                width={36}
+                height={36}
+                sx={{ mr: 3 }}
+              />
+
+              <TitleText title="Reserve Ratio" text={`${reserveRatio}%`} />
+            </>
+          </SingleStatCard>
+        </Box>
+
+        <InterestRateGraphCard url={Chains[chainId]?.analytics}/>
+        <Box
+          display="flex"
+          flexDirection={{ xs: 'column-reverse', lg: 'column' }}
+        >
           <Typography
-            variant="label"
-            paddingLeft={{ xs: 2, md: 6 }}
-            color={formatColor(neutral.gray3)}
+            mt={8}
+            mb={2}
+            color="text.primary"
+            display={{ xs: 'none', lg: 'block' }}
           >
-            Protocol Stats
+            Your Position
           </Typography>
           <Box
             sx={{
-              marginTop: 3,
+              marginBottom: 8,
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               columnGap: 2,
               [theme.breakpoints.down('lg')]: {
                 gridTemplateColumns: '1fr',
                 rowGap: 2,
+                mb: 3,
               },
             }}
           >
             <ProtocolStatsCard />
-            <UsdiGraphCard />
+            <StatsMeter />
           </Box>
-          <Box>
-            <Box sx={{ marginY: 4, px: { xs: 2, md: 6 } }}>
-              <StatsMeter />
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: '3fr 2fr',
+              gap: 2,
+              mb: 3,
+              [theme.breakpoints.down('lg')]: {
+                gridTemplateColumns: '1fr',
+                mt: 3,
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexDirection: { xs: 'column', lg: 'row' },
+              }}
+            >
+              <SingleStatCard>
+                <TitleTextToolTip
+                  title={`Borrowing Power`}
+                  content="Maximum amount that your vault can borrow, calculated by the sum of collateral values discounted by the LTV"
+                  text={
+                    borrowingPower !== null
+                      ? Number(borrowingPower).toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      })
+                      : null
+                  }
+                />
+              </SingleStatCard>
+              <SingleStatCard>
+                <TitleTextToolTip
+                  title={`Deposit APR`}
+                  content="Current annualized rate paid to USDi holders"
+                  text={
+                    depositAPR !== null ? depositAPR.toFixed(2) + '%' : null
+                  }
+                  substat={
+                    <Substat
+                      days={7}
+                      stat={((averages?.Supply || 0) * 100).toFixed(2)}
+                      suffix="%"
+                    />
+                  }
+                />
+              </SingleStatCard>
+              <SingleStatCard>
+                <TitleTextToolTip
+                  title={`Borrow APR`}
+                  content="Current annualized rate paid by USDi borrowers"
+                  text={borrowAPR !== null ? borrowAPR.toFixed(2) + '%' : null}
+                  substat={
+                    <Substat
+                      days={7}
+                      stat={((averages?.Borrow || 0) * 100).toFixed(2)}
+                      suffix="%"
+                    />
+                  }
+                />
+              </SingleStatCard>
             </Box>
-            <UserStats />
+
+            <SingleStatCard>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  columnGap: 12,
+                  [theme.breakpoints.down('lg')]: {
+                    flexWrap: 'wrap',
+                    rowGap: 2,
+                  },
+                }}
+              >
+                <TitleTextToolTip
+                  content="The amount of USDi your vault is currently borrowing. This increases as interest accrue."
+                  title={`USDi Borrowed`}
+                  text={
+                    accountLiability !== null
+                      ? '$' + Math.round(parseFloat(accountLiability)).toLocaleString()
+                      : null
+                  }
+                />
+
+                {hasVault ? (
+                  <Box
+                    display="grid"
+                    alignItems="center"
+                    columnGap={2}
+                    width="100%"
+                    gridTemplateColumns="1fr 1fr"
+                  >
+                    <InverseButton
+                      sx={{ width: '100%', height: { xs: 37, md: 48 } }}
+                      onClick={() => setType(ModalType.Borrow)}
+                    >
+                      <Typography variant="body1">Borrow</Typography>
+                    </InverseButton>
+
+                    <InverseButton
+                      sx={{ width: '100%', height: { xs: 37, md: 48 } }}
+                      onClick={() => setType(ModalType.Repay)}
+                    >
+                      <Typography variant="body1">Repay</Typography>
+                    </InverseButton>
+                  </Box>
+                ) : (
+                  Chains[chainId] && (
+                    <Box
+                      maxWidth={{ xs: 'auto', md: 350 }}
+                      width="100%"
+                      display="flex"
+                      alignItems="center"
+                    >
+                      <OpenVaultButton />
+                    </Box>
+                  )
+                )}
+              </Box>
+            </SingleStatCard>
           </Box>
         </Box>
-      ) : (
-        <Governance />
-      )}
+
+        <Box>
+          <UserIPTVault />
+          <UserStats />
+        </Box>
+      </Box>
 
       <Box maxWidth="xl" margin="auto">
-        <Box
-          px={{ xs: 3, md: 12 }}
-          mb={2}
-          display="flex"
-          columnGap={2}
-          justifyContent="flex-end"
-        >
-          <Box>
-            <Typography variant="label2">Gwei: </Typography>
-            <Typography variant="label2_medium">{gasPrice}</Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="label2">Block: </Typography>
-            <Typography variant="label2_medium">{dataBlock}</Typography>
-          </Box>
-        </Box>
+        <GweiBlockText />
       </Box>
     </Box>
   )

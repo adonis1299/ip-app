@@ -2,6 +2,7 @@ import { Button, Toolbar, Typography, Link } from '@mui/material'
 import { Box } from '@mui/system'
 import { useNavigate } from 'react-router'
 import Cookies from 'universal-cookie'
+import SVGBox from '../../components/icons/misc/SVGBox'
 import { formatColor, neutral, blue } from '../../theme'
 
 export const LandingDesktopToolbar = () => {
@@ -26,7 +27,7 @@ export const LandingDesktopToolbar = () => {
         color: formatColor(neutral.gray2),
         display: 'flex',
         zIndex: 10,
-        variant: 'body3',
+        variant: 'label',
         alignItems: 'center',
       }}
     >
@@ -42,12 +43,8 @@ export const LandingDesktopToolbar = () => {
 
   return (
     <Toolbar>
-      <Box
-        component="img"
-        src="images/ip_green.svg"
-        width={50}
-        height={50}
-      ></Box>
+      <SVGBox svg_name="ip_green" width={50} height={50} />
+
       <Box sx={{ gap: 5 }} display="flex" ml={5}>
         <DesktopLinkTo url="#/whitepaper" label="Whitepaper" />
         <DesktopLinkTo url="#/docs" label="Docs" />
@@ -56,8 +53,7 @@ export const LandingDesktopToolbar = () => {
           label="Git"
           newTarget
         />
-        <DesktopLinkTo url="#/sale" label="Sale" />
-        <DesktopLinkTo url="#/whitelist" label="Whitelist" />
+        <DesktopLinkTo url="#/sale" label="Token Sale" />
       </Box>
 
       <Box ml="auto">

@@ -1,14 +1,35 @@
 import { JsonRpcSigner } from '@ethersproject/providers'
 import { Vault__factory } from '../../chain/contracts'
+import { Token } from '../../types/token'
+import { MKRVotingVault__factory } from '../../chain/contracts/factories/lending/MKRVotingVault__factory'
 
 export const delegateVaultVotingPower = async (
   vault_address: string,
-  token: string,
+  token: Token,
   target: string,
-  signer: JsonRpcSigner
+  signer: JsonRpcSigner,
 ) => {
-  return Vault__factory.connect(vault_address, signer).delegateCompLikeTo(
-    target,
-    token
-  )
+  if (token.ticker === 'MKR') {
+    const MKRVVContract = MKRVotingVault__factory.connect(vault_address, signer)
+    const txn = await MKRVVContract.delegateMKRLikeTo(
+      target,
+      token.address
+    )
+    return txn
+  } else {
+    return Vault__factory.connect(vault_address, signer).delegateCompLikeTo(
+      target,
+      token.address
+    )
+  }
+}
+
+export const undelegateVaultVotingPower = async (
+  vault_address: string,
+  delegatee: string,
+  signer: JsonRpcSigner,
+) => {
+  const MKRVVContract = MKRVotingVault__factory.connect(vault_address, signer)
+  const txn = await MKRVVContract.undelegateMKRLike(delegatee)
+  return txn
 }

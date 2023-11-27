@@ -1,6 +1,6 @@
 import { Box, Typography, TextField } from '@mui/material'
-import { useState, FormEvent } from 'react'
-import { ContractReceipt } from 'ethers'
+import { useState, useEffect } from 'react'
+import { ContractTransaction } from 'ethers'
 
 import { formatColor, neutral } from '../../../theme'
 import {
@@ -16,6 +16,9 @@ import { useVaultDataContext } from '../../libs/vault-data-provider/VaultDataPro
 import { useWeb3Context } from '../../libs/web3-data-provider/Web3Provider'
 import { locale } from '../../../locale'
 import { delegateVaultVotingPower } from '../../../contracts/Vault/delegateVaultVotingPower'
+import SVGBox from '../../icons/misc/SVGBox'
+import getDelegate from '../../../contracts/VotingVault/getDelegate'
+import { ZERO_ADDRESS } from '../../../constants'
 
 export const DelegateModal = () => {
   const { type, setType, updateTransactionState } = useModalContext()
@@ -27,42 +30,54 @@ export const DelegateModal = () => {
   const [loadmsg, setLoadmsg] = useState('')
 
   const [address, setAddress] = useState('')
+  const [delegate, setDelegate] = useState('')
 
   const toggle = () => setFocus(!focus)
 
   const { delegateToken } = useAppGovernanceContext()
-  const { vaultAddress } = useVaultDataContext()
-  const { provider, currentAccount } = useWeb3Context()
+  const { vaultAddress, votingVaultAddress, hasVotingVault, MKRVotingVaultAddr } =
+    useVaultDataContext()
+  const { currentSigner } = useWeb3Context()
+  let delegateAddress =
+    delegateToken.capped_address && hasVotingVault
+      ? votingVaultAddress
+      : vaultAddress
 
-  const handleDelegateRequest = async (e: FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
+    if (currentSigner) {
+      getDelegate(delegateToken.address, currentSigner!, delegateAddress!).then(setDelegate)
+    }
+  }, [delegateToken])
+
+  const handleDelegateRequest = async () => {
     setLoading(true)
     setLoadmsg(locale('CheckWallet'))
     try {
-      await delegateVaultVotingPower(
-        vaultAddress!,
-        delegateToken.address,
+      
+      if (delegateToken.ticker === 'MKR') {
+        delegateAddress = MKRVotingVaultAddr
+      }
+      const txn = await delegateVaultVotingPower(
+        delegateAddress!,
+        delegateToken,
         address,
-        provider!.getSigner(currentAccount)!
-      ).then(async (res) => {
-        updateTransactionState(res)
-        setLoadmsg(locale('TransactionPending'))
-        setLoading(true)
-        return res!.wait().then((res) => {
-          setLoadmsg('')
-          setLoading(false)
+        currentSigner!,
+      )
+      updateTransactionState(txn)
+      setLoadmsg(locale('TransactionPending'))
+      setLoading(true)
 
-          updateTransactionState(res)
-        })
-      })
+      const receipt = await txn.wait()
+      setLoadmsg('')
+      setLoading(false)
+      updateTransactionState(receipt)
     } catch (e) {
       setLoading(false)
       setShaking(true)
       setTimeout(() => setShaking(false), 400)
-      console.log(e)
 
-      const err = e as ContractReceipt
-
+      const err = e as ContractTransaction
+      console.log(err)
       updateTransactionState(err)
     }
   }
@@ -91,21 +106,20 @@ export const DelegateModal = () => {
             columnGap: 2,
           }}
         >
-          <Box
-            component="img"
-            width={80}
-            height={80}
-            src={`images/${delegateToken.ticker}.svg`}
+          <SVGBox
+            svg_name={delegateToken.ticker}
+            width={40}
+            height={40}
             alt={delegateToken.name}
-          ></Box>
+          />
           <Box>
-            <Typography variant="subtitle1" color="text.primary" mb={1}>
+            <Typography variant="subtitle1" color="text.primary">
               ${delegateToken.ticker}
             </Typography>
           </Box>
         </Box>
         <Typography
-          variant="label2"
+          variant="body2"
           color={
             isLight ? formatColor(neutral.black) : formatColor(neutral.white)
           }
@@ -150,7 +164,19 @@ export const DelegateModal = () => {
             load_text={loadmsg}
             onClick={handleDelegateRequest}
           />
+          
         </Box>
+        { currentSigner && delegateToken.ticker !== 'MKR' && (
+          <Box mt={2}>
+            <Typography variant="label_semi"
+              sx={{
+                color: formatColor(neutral.gray3),
+              }}
+            >
+              Delegation status: {delegate && delegate !== ZERO_ADDRESS ? 'Delegated to ' + delegate : 'Not delegated'}
+            </Typography>
+          </Box>
+        )}
       </Box>
     </BaseModal>
   )

@@ -13,10 +13,25 @@ import { DisableableModalButton } from '../button/DisableableModalButton'
 import { ModalInputContainer } from './ModalContent/ModalInputContainer'
 import { useWeb3Context } from '../../libs/web3-data-provider/Web3Provider'
 import { locale } from '../../../locale'
-import { delegateUserVotingPower } from '../../../contracts/IPTDelegate'
+import {
+  delegateUserVotingPower,
+  getUserDelegates,
+  getUserVotingPower,
+} from '../../../contracts/IPTDelegate'
+import { useAppGovernanceContext } from '../../libs/app-governance-provider/AppGovernanceProvider'
+import { getUserIPTBalance } from '../../../contracts/IPTDelegate/getUserIPTbalance'
+import { BN, BNtoDec } from '../../../easy/bn'
+import { ZERO_ADDRESS } from '../../../constants'
 
 export const DelegateIPTModal = () => {
   const { type, setType, updateTransactionState } = useModalContext()
+  const {
+    delegatedTo,
+    setDelegatedTo,
+    iptBalance,
+    setCurrentVotes,
+    setIptBalance,
+  } = useAppGovernanceContext()
   const isLight = useLight()
 
   const [focus, setFocus] = useState(false)
@@ -48,6 +63,27 @@ export const DelegateIPTModal = () => {
             setLoading(false)
 
             updateTransactionState(res)
+
+            if (currentAccount && currentSigner) {
+              getUserVotingPower(currentAccount, currentSigner!).then((res) => {
+                const currentVotes = BNtoDec(res)
+                setCurrentVotes(currentVotes)
+
+                if (currentVotes <= 0) {
+                  getUserIPTBalance(currentAccount, currentSigner!).then(
+                    (response) => {
+                      const iptBalance = BNtoDec(response)
+                      setIptBalance(iptBalance)
+                      if(iptBalance > 0){
+                        getUserDelegates(currentAccount, currentSigner).then((delegatee)=>{
+                          setDelegatedTo(delegatee)
+                        })
+                      }
+                    }
+                  )
+                }
+              })
+            }
           })
         }
       )
@@ -81,44 +117,50 @@ export const DelegateIPTModal = () => {
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'center',
+            justifyContent: 'center',
             mb: 1,
             mt: 1,
-            columnGap: 1,
+            flexDirection: 'column',
           }}
         >
-          <Box>
-            <Typography variant="subtitle2" color="text.primary" mb={0}>
-              {screen === 0 ? 'Delegate your Vote' : 'Add Delegate'}
-            </Typography>
-          </Box>
+          <Typography variant="subtitle2" color="text.primary" mb={0}>
+            {screen === 0 ? 'Delegate your IPT' : 'Add Delegate'}
+          </Typography>
         </Box>
-        <Typography
-          variant="label2"
-          color={
-            isLight ? formatColor(neutral.gray3) : formatColor(neutral.gray3)
-          }
-        >
-          {screen === 0
-            ? 'You can vote on each proposal yourself or add a delegate to share your votes with.'
-            : 'You can either vote yourself or delegate your votes to someone else.'}
-        </Typography>
+        {(iptBalance > 0) && (
+          <Typography variant="label" display="block" color="text.primary">
+            You have{' '}
+            {iptBalance.toLocaleString(undefined, {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 2,
+            })}{' '}
+            IPT.
+            {(delegatedTo != ZERO_ADDRESS) ? (<> You are currently delegating to {delegatedTo}</>) : (<>"You should delegate your IPT votes to yourself or a friend."</>)}
+          </Typography>
+        )}
+        {screen !== 0 && (
+          <Typography
+            variant="body2"
+            display="block"
+            color={
+              isLight ? formatColor(neutral.gray3) : formatColor(neutral.gray3)
+            }
+          >
+            You can either vote yourself or delegate your votes to someone else.
+          </Typography>
+        )}
         {screen === 0 ? (
-          <Box>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: formatColor(blue.blue1),
-                color: formatColor(neutral.white),
-                my: 2,
-              }}
+          <Box mt={2}>
+            <DisableableModalButton
+              text="Self Delegate"
               onClick={() => handleDelegateRequest(false)}
-            >
-              Self Delegate
-            </Button>
+            />
+
             <Button
               variant="text"
               sx={{
+                mt: 1,
+                fontSize: 14,
                 color: isLight
                   ? formatColor(neutral.black)
                   : formatColor(neutral.white),
@@ -143,8 +185,8 @@ export const DelegateIPTModal = () => {
                     sx: {
                       '&:before, &:after': {
                         borderBottom: 'none !important',
-                      },
-                    },
+                  },
+                  },
                   }}
                   sx={{
                     width: '100%',
@@ -154,7 +196,7 @@ export const DelegateIPTModal = () => {
                       color: isLight
                         ? formatColor(neutral.gray1)
                         : formatColor(neutral.white),
-                    },
+                  },
                   }}
                 />
               </ModalInputContainer>

@@ -10,6 +10,7 @@ import { useWeb3Context } from '../../libs/web3-data-provider/Web3Provider'
 import { Spinner, WithSpinner } from '../loading'
 import { InterestEventEvent } from '../../../chain/contracts/lending/VaultController'
 import { DonationEvent } from '../../../chain/contracts/USDI'
+import SVGBox from '../../icons/misc/SVGBox'
 
 export const UsdiGraphCard = () => {
   const isLight = useLight()
@@ -194,10 +195,8 @@ export const UsdiGraphCard = () => {
       sx={{
         paddingX: { xs: 3, md: 6 },
         paddingY: { xs: 6, md: 6 },
-        backgroundImage: `linear-gradient(${formatGradient(
-          isLight ? gradient.gradient1 : gradient.gradient2
-        )})`,
-        borderRadius: { xs: 5, md: 17 },
+        backgroundColor: 'card.background',
+        borderRadius: 2.5,
         display: 'flex',
       }}
     >
@@ -277,12 +276,7 @@ export const UsdiGraphCard = () => {
           justifyContent="center"
           margin="auto"
         >
-          <Box
-            component="img"
-            width={100}
-            mb={3}
-            src="images/loading_placeholder.svg"
-          ></Box>
+          <SVGBox svg_name="loading_placeholder" sx={{ mb: 3 }} width={100} />
 
           <Typography
             variant="label2_medium"
@@ -297,7 +291,7 @@ export const UsdiGraphCard = () => {
 }
 
 const GraphTypography = ({ text }: { text: string }) => (
-  <Typography variant="label2" color={formatColor(neutral.gray3)}>
+  <Typography variant="label_semi" color={formatColor(neutral.gray3)}>
     {text}
   </Typography>
 )

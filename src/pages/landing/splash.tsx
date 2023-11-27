@@ -33,11 +33,7 @@ export const Splash: React.FC = () => {
         }}
       >
         <Box>
-          <Typography
-            flexBasis="50%"
-            variant="h1"
-            color={formatColor(neutral.gray1)}
-          >
+          <Typography flexBasis="50%" variant="h1" color="#202020">
             Interest Protocol
           </Typography>
         </Box>
@@ -53,14 +49,19 @@ export const Splash: React.FC = () => {
             }}
           >
             <Typography
-              variant="body3"
+              variant="body1"
               whiteSpace="nowrap"
               color={formatColor(neutral.black)}
             >
               IP Whitepaper
             </Typography>
             <ForwardIcon
-              sx={{ width: 11, ml: 1, top: 1, position: 'relative' }}
+              sx={{
+                width: 11,
+                ml: 1,
+                position: 'relative',
+                stroke: 'black',
+              }}
             />
           </Button>
         </Box>

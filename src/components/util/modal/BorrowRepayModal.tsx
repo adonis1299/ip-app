@@ -12,6 +12,7 @@ import { BorrowContent } from './ModalContent/BorrowContent'
 import { RepayContent } from './ModalContent/RepayContent'
 import { useVaultDataContext } from '../../libs/vault-data-provider/VaultDataProvider'
 import { ForwardIcon } from '../../icons/misc/ForwardIcon'
+import SVGBox from '../../icons/misc/SVGBox'
 
 export const BorrowRepayModal = () => {
   const { type, setType } = useModalContext()
@@ -27,7 +28,7 @@ export const BorrowRepayModal = () => {
   const [borrowAmount, setBorrowAmount] = useState('')
   useEffect(() => {
     if (borrowingPower) {
-      setVaultBorrowPower(borrowingPower.toFixed(0))
+      setVaultBorrowPower(borrowingPower)
     }
   }, [borrowingPower])
   const onSwitch = (val: boolean) => {
@@ -56,19 +57,13 @@ export const BorrowRepayModal = () => {
           columnGap: 2,
         }}
       >
-        <Box
-          component="img"
-          width={80}
-          height={80}
-          src={`images/${tokenName}.svg`}
-          alt={tokenName}
-        ></Box>
+        <SVGBox svg_name={tokenName} width={40} height={40} alt={tokenName} />
         <Box>
-          <Typography variant="label2" color={formatColor(neutral.gray3)}>
+          <Typography variant="label" color={formatColor(neutral.gray3)}>
             Liability:
           </Typography>
-          <Typography variant="subtitle1" color="text.primary">
-            ${accountLiability.toFixed(0)}
+          <Typography variant="h7" display="block" color="text.primary">
+            ${parseFloat(accountLiability).toFixed(2)}
           </Typography>
         </Box>
         {currType ? (
@@ -103,7 +98,10 @@ export const BorrowRepayModal = () => {
         {borrowAmount ? (
           currType ? (
             <Box>
-              <Typography variant="label2" color={formatColor(neutral.gray3)}>
+              <Typography
+                variant="label_semi"
+                color={formatColor(neutral.gray3)}
+              >
                 New:
               </Typography>
               <Typography variant="subtitle1" color="text.primary">
@@ -112,7 +110,10 @@ export const BorrowRepayModal = () => {
             </Box>
           ) : (
             <Box>
-              <Typography variant="label2" color={formatColor(neutral.gray3)}>
+              <Typography
+                variant="label_semi"
+                color={formatColor(neutral.gray3)}
+              >
                 New:
               </Typography>
               <Typography variant="subtitle1" color="text.primary">
@@ -132,7 +133,7 @@ export const BorrowRepayModal = () => {
           vaultID={Number(vaultID)}
           borrowAmount={borrowAmount}
           setBorrowAmount={setBorrowAmount}
-          accountLiability={accountLiability}
+          accountLiability={parseFloat(accountLiability)}
         />
       ) : (
         <RepayContent
@@ -141,7 +142,7 @@ export const BorrowRepayModal = () => {
           vaultID={Number(vaultID)}
           repayAmount={borrowAmount}
           setRepayAmount={setBorrowAmount}
-          accountLiability={accountLiability}
+          accountLiability={parseFloat(accountLiability)}
         />
       )}
     </BaseModal>

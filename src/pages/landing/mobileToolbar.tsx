@@ -13,6 +13,7 @@ import { formatColor, neutral } from '../../theme'
 import { MenuIcon } from '../../components/icons/misc/menuIcon'
 import { useNavigate } from 'react-router'
 import Cookies from 'universal-cookie'
+import SVGBox from '../../components/icons/misc/SVGBox'
 
 const iOS =
   typeof navigator !== 'undefined' &&
@@ -42,12 +43,11 @@ export const LandingMobileToolbar = () => {
       }}
     >
       <Link href="/" aria-level={1}>
-        <Box
-          component="img"
-          src="images/ip_green.svg"
+        <SVGBox
+          svg_name="ip_green"
           width={{ xs: 25, md: 50 }}
           height={{ xs: 25, md: 50 }}
-        ></Box>
+        />
       </Link>
 
       <Box display="flex">
@@ -62,7 +62,7 @@ export const LandingMobileToolbar = () => {
           color="secondary"
           onClick={() => setNavMenuOpen(true)}
         >
-          <MenuIcon sx={{ width: 32, height: 32 }} />
+          <MenuIcon sx={{ fill: '#5E64F4', width: 32, height: 32 }} />
         </Button>
       </Box>
 
@@ -107,14 +107,14 @@ export const LandingMobileToolbar = () => {
             alignItems: 'start',
           }}
         >
-          <ForwardIcon />
+          <ForwardIcon stroke="black" />
         </Button>
 
         <Box sx={{ gap: 4 }} display="flex" flexDirection="column">
           <Button
             variant="text"
             onClick={toApp}
-            sx={{ color: 'inherit', justifyContent: 'start', mb: -1 }}
+            sx={{ color: 'inherit', justifyContent: 'start', mb: -1, pl: 0 }}
           >
             <Typography variant="body3" color={formatColor(neutral.black)}>
               App

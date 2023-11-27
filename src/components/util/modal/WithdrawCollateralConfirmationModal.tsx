@@ -8,12 +8,13 @@ import {
 import { BaseModal } from './BaseModal'
 import { useLight } from '../../../hooks/useLight'
 import { DisableableModalButton } from '../button/DisableableModalButton'
-import { useWithdrawCollateral } from '../../../hooks/useWithdraw'
 import { useWeb3Context } from '../../libs/web3-data-provider/Web3Provider'
 import { useVaultDataContext } from '../../libs/vault-data-provider/VaultDataProvider'
 import { locale } from '../../../locale'
 import { TransactionReceipt } from '@ethersproject/providers'
 import { round } from '../../../easy/bn'
+import withdrawCollateral from '../../../contracts/Vault/withdrawCollateral'
+import SVGBox from '../../icons/misc/SVGBox'
 
 export const WithdrawCollateralConfirmationModal = () => {
   const {
@@ -26,7 +27,7 @@ export const WithdrawCollateralConfirmationModal = () => {
     collateralWithdrawAmountMax,
     setCollateralWithdrawAmountMax,
   } = useModalContext()
-  const { provider, currentAccount } = useWeb3Context()
+  const {currentSigner} = useWeb3Context()
   const { vaultAddress } = useVaultDataContext()
   const [loadmsg, setLoadmsg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -37,14 +38,16 @@ export const WithdrawCollateralConfirmationModal = () => {
     setLoadmsg(locale('CheckWallet'))
 
     const amount = collateralWithdrawAmountMax
-      ? collateralToken.vault_unformatted_amount
+      ? collateralToken.vault_amount
       : collateralWithdrawAmount
     try {
-      const attempt = await useWithdrawCollateral(
+      const attempt = await withdrawCollateral(
         amount!,
-        collateralToken.address,
+        collateralToken.capped_address
+          ? collateralToken.capped_address
+          : collateralToken.address,
         vaultAddress!,
-        provider?.getSigner(currentAccount)!
+        currentSigner!,
       )
 
       updateTransactionState(attempt)
@@ -99,19 +102,19 @@ export const WithdrawCollateralConfirmationModal = () => {
         }}
       >
         <Box display="flex" alignItems="center">
-          <Box
-            component="img"
+          <SVGBox
             width={36}
             height={36}
-            src={`images/${collateralToken.ticker}.svg`}
+            svg_name={collateralToken.ticker}
+            sx={{ mr: 3 }}
             alt={collateralToken.ticker}
-            marginRight={3}
-          ></Box>
+          />
+
           <Box>
             <Typography variant="body3" color="text.primary">
               $
               {round(
-                collateralToken.value * Number(collateralWithdrawAmount),
+                collateralToken.price * Number(collateralWithdrawAmount),
                 2
               )}{' '}
               ({round(collateralWithdrawAmount, 4)} {collateralToken.ticker} )

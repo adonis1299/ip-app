@@ -1,6 +1,12 @@
-import { Box, Typography, Tabs, Tab, Button } from '@mui/material'
+import {
+  Box,
+  Typography,
+  Button,
+  InputAdornment,
+  Skeleton,
+  Divider,
+} from '@mui/material'
 import { FormEvent, useEffect, useState } from 'react'
-import { formatColor, neutral } from '../../theme'
 import { AppLayout } from '../../components/partials/app-layout'
 import { useLight } from '../../hooks/useLight'
 import { DecimalInput } from '../../components/util/textFields'
@@ -10,31 +16,41 @@ import Cookies from 'universal-cookie'
 import { PDFModal } from '../../components/util/pdfViewer/PDFModal'
 import { useRolodexContext } from '../../components/libs/rolodex-data-provider/RolodexDataProvider'
 import {
-  getAccountRedeemedCurrentWave,
-  getTotalClaimed,
-  useClaimIPT,
-  useCommitUSDC,
-  WAVEPOOL_ADDRESS,
-} from '../../hooks/useSaleUtils'
+  getCurrentPrice,
+  getAmountIPTForSale,
+  commitUSDC,
+  getEndTime,
+  getBasePrice,
+} from '../../contracts/IPTSale/slowRollMethods'
 import { useWeb3Context } from '../../components/libs/web3-data-provider/Web3Provider'
-import { getSaleMerkleProof } from './getMerkleProof'
 import { useModalContext } from '../../components/libs/modal-content-provider/ModalContentProvider'
-import { TransactionReceipt } from '@ethersproject/providers'
+import { JsonRpcSigner, TransactionReceipt } from '@ethersproject/providers'
 import { BN } from '../../easy/bn'
 import { locale } from '../../locale'
 import { BNtoHexNumber } from '../../components/util/helpers/BNtoHex'
-import useCurrentTime from '../../hooks/useCurrentTime'
-import { isInWhitelist } from './getUserIsEligible'
+import { ClockIcon } from '../../components/icons/misc/ClockIcon'
+import { SwapIcon } from '../../components/icons/misc/SwapIcon'
+import getSaleSummary, {
+  SaleSummary,
+} from '../../components/util/api/getSaleSummary'
+import { SLOWROLL_ADDRESS } from '../../constants'
+import SVGBox from '../../components/icons/misc/SVGBox'
+import { hasUSDCAllowance } from '../../contracts/misc/hasAllowance'
+import { Chains } from '../../chain/chains'
 
 const PurchasePage: React.FC = () => {
   const [scrollTop, setScrollTop] = useState(0)
+  const [saleSummary, setSaleSummary] = useState<SaleSummary>()
   const cookie = new Cookies()
+  const { chainId, dataBlock } = useWeb3Context()
 
   const [open, setOpen] = useState(cookie.get('IP_ACCEPT_TERMS') != 'YES')
   const handleAgree = () => {
     cookie.set('IP_ACCEPT_TERMS', 'YES')
     setOpen(false)
   }
+
+  const isLight = useLight()
 
   useEffect(() => {
     const onScroll = (e: any) => {
@@ -44,110 +60,132 @@ const PurchasePage: React.FC = () => {
     return () => window.removeEventListener('scroll', onScroll)
   }, [scrollTop])
 
-  if (1 == 1) {
-    return (
-      <div style={{ minHeight: '80vh' }}>
-        <meta
-          http-equiv="refresh"
-          content="0; url=https://forum.interestprotocol.io/t/token-distribution-delayed/30"
+  useEffect(() => {
+    if (Chains[chainId]) {
+      getSaleSummary(Chains[chainId].analytics).then(setSaleSummary)
+    }
+  }, [dataBlock])
+
+  const SaleSummaryStat = ({
+    stat,
+    statValue,
+  }: {
+    stat: string
+    statValue: string | undefined
+  }) => (
+    <Box display="flex" flexDirection={{ xs: 'column', lg: 'row' }}>
+      <Typography variant="label_semi" color="text.secondary" mr={1}>
+        {stat}:
+      </Typography>
+      {statValue ? (
+        <Typography variant="label_semi">{statValue}</Typography>
+      ) : (
+        <Skeleton
+          variant="rectangular"
+          width={70}
+          height="14px"
+          animation="wave"
+          sx={{
+            position: 'relative',
+            display: 'inline-block',
+          }}
         />
-        <a href="https://forum.interestprotocol.io/t/token-distribution-delayed/30">
-          please click here if you are not redirected
-        </a>
-      </div>
-    )
-  }
+      )}
+    </Box>
+  )
+
   return (
     <AppLayout>
       <Box
         sx={{
-          marginX: 'auto',
-          position: 'relative',
-          height: '100%',
+          pt: 5,
+          pb: 15,
           minHeight: '70vh',
-          width: '100%',
-          overflow: 'hidden',
-          py: { xs: 10 },
-          maxWidth: 800,
-          paddingX: { xs: 2, sm: 10 },
+          display: 'flex',
+          alignItems: 'center',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          px: 2,
         }}
       >
-        <PDFModal
-          isOpen={open}
-          setIsOpen={setOpen}
-          pdf_src="ip_terms.pdf"
-          must_agree={true}
-          must_agree_handler={handleAgree}
-        />
+        <Box
+          display="flex"
+          columnGap={2}
+          rowGap={1}
+          alignItems="center"
+          mb={{ xs: 2, lg: 4 }}
+        >
+          <SaleSummaryStat
+            stat="Total IPT Sold"
+            statValue={saleSummary?.IPTSold.toLocaleString(undefined, {
+              maximumFractionDigits: 0,
+            })}
+          />
+          <Divider
+            orientation="vertical"
+            variant="middle"
+            sx={{
+              borderColor: 'text.secondary',
+              margin: 'auto',
+              position: 'relative',
+              height: 16,
+            }}
+            flexItem
+          />
 
-        <PurchaseBox />
+          <SaleSummaryStat
+            stat="USDC Raised"
+            statValue={saleSummary?.USDCRaised.toLocaleString(undefined, {
+              maximumFractionDigits: 0,
+            })}
+          />
+          <Divider
+            orientation="vertical"
+            variant="middle"
+            sx={{
+              borderColor: 'text.secondary',
+              margin: 'auto',
+              position: 'relative',
+              height: 16,
+            }}
+            flexItem
+          />
+
+          <SaleSummaryStat
+            stat="Avg. Price"
+            statValue={saleSummary?.AveragePrice.toLocaleString('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            })}
+          />
+        </Box>
+        <Box
+          sx={{
+            marginX: 'auto',
+            position: 'relative',
+            height: '100%',
+            width: '100%',
+            overflow: 'hidden',
+            py: { xs: 4 },
+            maxWidth: 800,
+            paddingX: { xs: 2, sm: 4 },
+            backgroundColor: isLight ? '#fcfdff' : '#1C1D21',
+            borderRadius: 2.5,
+          }}
+        >
+          <PDFModal
+            isOpen={open}
+            setIsOpen={setOpen}
+            pdf_src="ip_terms.pdf"
+            must_agree={true}
+            must_agree_handler={handleAgree}
+          />
+          <PurchaseBox setOpenTerms={setOpen} />
+        </Box>
       </Box>
     </AppLayout>
   )
 }
-
-const PurchaseBox: React.FC = () => {
-  const { currentAccount, connected } = useWeb3Context()
-  const [value, setValue] = useState(0)
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue)
-  }
-
-  const TabStyle = {
-    backgroundColor: 'primary.light',
-    color: 'primary.main',
-    px: { xs: 1, sm: 5 },
-    py: { xs: 0.5, sm: 1.5 },
-    minHeight: 'auto',
-
-    '&.Mui-selected': {
-      backgroundColor: 'primary.dark',
-      borderRadius: 2,
-      color: 'primary.light',
-    },
-  }
-
-  return (
-    <Box>
-      <Tabs
-        value={value}
-        onChange={handleChange}
-        centered
-        sx={{
-          mb: 4,
-          '& .MuiTabs-indicator': {
-            display: 'none',
-          },
-        }}
-      >
-        <Tab sx={TabStyle} label="Wave 1" />
-        <Tab sx={TabStyle} label="Wave 2" />
-        <Tab sx={TabStyle} label="Wave 3" />
-      </Tabs>
-      {!connected && !currentAccount && (
-        <Box textAlign="center" mb={2}>
-          <Typography color="error" variant="h6">
-            Please connect your wallet
-          </Typography>
-        </Box>
-      )}
-
-      <TabPanel value={value} index={0} iptForSale={35000000} limit={1000000} />
-      <TabPanel value={value} index={1} iptForSale={35000000} limit={500000} />
-      <TabPanel value={value} index={2} iptForSale={35000000} />
-    </Box>
-  )
-}
-
-interface TabPanelProps {
-  children?: React.ReactNode
-  index: number
-  value: number
-  iptForSale: number
-  limit?: number
-}
-
-const saleTimes = [1655658000000, 1655139600000, 1655312400000, 1655485200000]
 
 const formatSecondsTill = (n: number) => {
   if (n < 600) {
@@ -157,121 +195,149 @@ const formatSecondsTill = (n: number) => {
     return Math.floor(n / 60) + ' minute(s)'
   }
 
-  return Math.floor(n / (60 * 60)) + ' hour(s)'
+  return Math.round(n / (60 * 60)) + ' hour(s)'
 }
 
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, iptForSale, limit, ...other } = props
+const PurchaseBox = ({
+  setOpenTerms,
+}: {
+  setOpenTerms: (val: boolean) => void
+}) => {
   const isLight = useLight()
-  const [usdcAmountToCommit, setUsdcAmountToCommit] = useState('')
+  const [amountToCommit, setAmountToCommit] = useState('')
+  const [isIPTValue, setIsIPTValue] = useState(false)
   const [focus, setFocus] = useState(false)
   const toggle = () => setFocus(!focus)
-  const waveNum = index + 1
   const rolodex = useRolodexContext()
-  const { currentSigner, currentAccount, dataBlock, chainId, connected } =
-    useWeb3Context()
+  const {
+    currentSigner,
+    currentAccount,
+    dataBlock,
+    chainId,
+    connected,
+    provider,
+  } = useWeb3Context()
   const { updateTransactionState } = useModalContext()
-  const currentTime = useCurrentTime()
+  const [iptForSale, setIptForSale] = useState<number | undefined>()
+  const [iptSold, setIptSold] = useState<string | undefined>()
 
+  const [basePrice, setBasePrice] = useState(0.25)
+  const [salePrice, setSalePrice] = useState<number | undefined>()
+  const [saleSummary, setSaleSummary] = useState<SaleSummary>()
   const [loading, setLoading] = useState(false)
   const [loadmsg, setLoadmsg] = useState('')
 
-  const [needAllowance, setNeedAllowance] = useState(true)
-  const [disableTime, setDisableTime] = useState<Date>()
-  const startTime = new Date(saleTimes[waveNum])
+  const [hasAllowance, setHasAllowance] = useState(false)
 
-  const [salePeriodRemaining, setSalePeriodRemaining] = useState<string>('')
-  const [redeemed, setRedeemed] = useState(true)
-  const [totalClaimed, setTotalClaimed] = useState('0')
-  const [claimable, setClaimable] = useState(0)
-  const [isEligible, setIsEligible] = useState(false)
+  const [salePeriodRemaining, setSalePeriodRemaining] = useState<
+    string | undefined
+  >()
+  const [secondaryValue, setSecondaryValue] = useState<string>('')
+  const [secondaryValueUnit, setSecondaryValueUnit] = useState<string>('USDC')
+
   useEffect(() => {
-    if (currentAccount && waveNum !== 3) {
-      const isEligible = isInWhitelist(waveNum, currentAccount)
-      setIsEligible(isEligible)
+    if (amountToCommit === '') {
+      setSecondaryValue('')
+    } else if (isIPTValue) {
+      setSecondaryValue((Number(amountToCommit) * salePrice!).toString())
     } else {
-      setIsEligible(true)
+      setSecondaryValue((Number(amountToCommit) / salePrice!).toString())
     }
-    const time: Date = new Date(saleTimes[0])
+  }, [amountToCommit])
 
-    if (saleTimes[waveNum] > currentTime.valueOf()) {
-      let timeleft = (startTime.valueOf() - currentTime.valueOf()) / 1000
-      setSalePeriodRemaining('starts in ' + formatSecondsTill(timeleft))
+  useEffect(() => {
+    const val = Number(secondaryValue)
+
+    let secVal
+
+    if (isNaN(val)) {
+      secVal = ''
     } else {
-      setSalePeriodRemaining(
-        'ends in ' +
-          formatSecondsTill((time.valueOf() - currentTime.valueOf()) / 1000)
-      )
+      secVal = secondaryValue
     }
 
-    if (connected && rolodex && currentAccount) {
-      setDisableTime(time)
+    setAmountToCommit(secVal)
 
-      getAccountRedeemedCurrentWave(
-        currentSigner!,
-        currentAccount,
-        waveNum
-      ).then((res) => {
-        setClaimable(BNtoHexNumber(res[0]))
-        setRedeemed(res[1])
+    isIPTValue ? setSecondaryValueUnit('USDC') : setSecondaryValueUnit('IPT')
+  }, [isIPTValue])
+
+  useEffect(() => {
+    getEndTime(provider!).then((x) => {
+      let remaining = x.toNumber() - new Date().valueOf() / 1000
+      let isNewDay = false
+      let srt = ''
+      if (remaining <= 0) {
+        isNewDay = true
+        srt = formatSecondsTill(22 * 60 * 60)
+      } else {
+        srt = formatSecondsTill(remaining)
+      }
+      setSalePeriodRemaining(srt)
+      if (isNewDay) {
+        setSalePrice(basePrice)
+        setIptSold('0')
+        setIptForSale(1000000)
+        return
+      }
+      getBasePrice(provider!).then((res) => {
+        setBasePrice(res)
       })
-    }
-  }, [connected, currentAccount, chainId, rolodex, currentTime])
+      getAmountIPTForSale(provider!).then((res) => {
+        let sold = BNtoHexNumber(res.soldQuantity.div(1e14).div(1e4))
+        setIptSold(sold.toLocaleString())
+        let max = BNtoHexNumber(res.maxQuantity.div(1e14).div(1e4))
+        setIptForSale(max - sold)
+      })
+      getCurrentPrice(provider!).then((res) => {
+        setSalePrice(res.toNumber() / 1e6)
+      })
+    })
+  }, [chainId, rolodex, loadmsg])
 
   useEffect(() => {
-    if (rolodex && usdcAmountToCommit && rolodex.USDC) {
-      rolodex
-        .USDC!.allowance(currentAccount, WAVEPOOL_ADDRESS)
-        .then((initialApproval) => {
-          const formattedUSDCAmount = BN(usdcAmountToCommit).mul(1e6)
-          if (initialApproval.lt(formattedUSDCAmount)) {
-            setNeedAllowance(true)
-          } else {
-            setNeedAllowance(false)
-          }
-        })
+    if (rolodex && amountToCommit) {
+      const usdcAmount = isIPTValue ? secondaryValue : amountToCommit
+
+      hasUSDCAllowance(
+        currentAccount,
+        SLOWROLL_ADDRESS,
+        usdcAmount,
+        rolodex
+      ).then(setHasAllowance)
     }
-    getTotalClaimed(currentSigner!).then((res) =>
-      setTotalClaimed(BNtoHexNumber(res.div(1000000)).toLocaleString())
-    )
-  }, [rolodex, dataBlock, chainId, usdcAmountToCommit])
+  }, [rolodex, dataBlock, chainId, amountToCommit])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (needAllowance) {
-      handleApprovalRequest()
-    } else {
+    if (hasAllowance) {
       usdcCommitHandler()
-    }
-  }
-
-  const claimHandler = async () => {
-    try {
-      const claimTransaction = await useClaimIPT(currentSigner!, waveNum)
-
-      updateTransactionState(claimTransaction)
-      const claimReceipt = await claimTransaction.wait()
-
-      updateTransactionState(claimReceipt)
-    } catch (err) {
-      const error = err as TransactionReceipt
-      updateTransactionState(error)
+    } else {
+      handleApprovalRequest()
     }
   }
 
   const handleApprovalRequest = async () => {
-    if (rolodex && usdcAmountToCommit) {
-      let formattedCommitAmount = BN(usdcAmountToCommit).mul(1e6)
+    if (rolodex && amountToCommit) {
+      const usdcAmount = isIPTValue ? secondaryValue : amountToCommit
+
+      let formattedCommitAmount = BN(usdcAmount).mul(1e6)
       setLoading(true)
       try {
         setLoadmsg(locale('CheckWallet'))
         const approve = await rolodex.USDC?.connect(currentSigner!).approve(
-          WAVEPOOL_ADDRESS,
+          SLOWROLL_ADDRESS,
           formattedCommitAmount
         )
 
         setLoadmsg(locale('TransactionPending'))
         await approve?.wait()
+
+        hasUSDCAllowance(
+          currentAccount,
+          SLOWROLL_ADDRESS,
+          usdcAmount,
+          rolodex
+        ).then(setHasAllowance)
       } catch (e) {
         console.log(e)
       }
@@ -280,20 +346,18 @@ function TabPanel(props: TabPanelProps) {
   }
 
   const usdcCommitHandler = async () => {
-    if (rolodex !== null && Number(usdcAmountToCommit) > 0) {
-      let formattedCommitAmount = BN(usdcAmountToCommit).mul(1e6)
+    if (rolodex !== null && Number(amountToCommit) > 0) {
+      const usdcAmount = isIPTValue ? secondaryValue : amountToCommit
+
+      let formattedCommitAmount = BN(usdcAmount).mul(1e6)
       setLoading(true)
 
       try {
         setLoadmsg(locale('CheckWallet'))
-        const { proof, key } = await getSaleMerkleProof(currentAccount, waveNum)
 
-        const commitTransaction = await useCommitUSDC(
+        const commitTransaction = await commitUSDC(
           formattedCommitAmount,
-          currentSigner!,
-          waveNum,
-          key,
-          proof
+          currentSigner!
         )
 
         updateTransactionState(commitTransaction)
@@ -307,146 +371,292 @@ function TabPanel(props: TabPanelProps) {
         updateTransactionState(error)
       }
       setLoading(false)
+      setLoadmsg('')
     }
   }
 
   return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box>
+    <Box>
+      <Box>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          rowGap={2}
+          flexDirection={{ xs: 'column', lg: 'row' }}
+        >
           <Box display="flex" alignItems="center">
-            <Box
-              component="img"
-              src="images/ipt_blue.svg"
-              width={80}
-              mr={3}
-            ></Box>
+            <SVGBox
+              svg_name={`ipt_${isLight ? 'blue' : 'white'}`}
+              width={32}
+              height={32}
+              sx={{ mr: 2 }}
+            />
+
             <Typography variant="subtitle1">IPT Sale</Typography>
           </Box>
 
-          <Box display="flex" mt={3}>
-            <Typography variant="body3" color="#A3A9BA" mr={1}>
-              Sale Period:{' '}
-            </Typography>
+          <Box display="flex" alignItems="center">
+            <ClockIcon
+              sx={{ width: 14, height: 14, mr: 1, mb: 0.5 }}
+              strokecolor={isLight ? '#25262C' : '#FFF'}
+            />
             <Typography variant="body3" color="primary.dark">
-              {salePeriodRemaining != ''
-                ? `Wave ${waveNum} ${salePeriodRemaining}`
-                : 'Ended'}
+              Sale Renews in{' '}
+              {salePeriodRemaining ? (
+                salePeriodRemaining
+              ) : (
+                <Skeleton
+                  variant="rectangular"
+                  height="16px"
+                  width="80px"
+                  animation="wave"
+                  sx={{
+                    display: 'inline-block',
+                  }}
+                />
+              )}
             </Typography>
           </Box>
+        </Box>
 
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          mt={{ xs: 2, lg: 3 }}
+        >
           <Box
-            display="flex"
+            display=""
             flexDirection={{ xs: 'column', md: 'row' }}
             justifyContent="space-between"
-            mt={3}
             columnGap={4}
             rowGap={2}
           >
-            <Box display="flex">
-              <Typography variant="body1" color="#A3A9BA" mr={1}>
-                Total IPT:{' '}
-              </Typography>
-              <Typography variant="body1" color="primary.dark">
-                {' '}
-                {iptForSale.toLocaleString()}
-              </Typography>
-            </Box>
-            {connected && currentAccount && (
-              <Box display="flex">
-                <Typography variant="body1" color="#A3A9BA" mr={1}>
-                  Total USDC:
-                </Typography>
-                <Typography variant="body1" color="primary.dark">
-                  {totalClaimed}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-          <Box component="form" onSubmit={handleSubmit} mt={4}>
-            <ModalInputContainer focus={focus}>
-              <DecimalInput
-                onFocus={toggle}
-                onBlur={toggle}
-                placeholder="USDC Amount"
-                value={usdcAmountToCommit}
-                onChange={setUsdcAmountToCommit}
-              />
-            </ModalInputContainer>
-            <Box mt={2}>
-              {limit &&
-              disableTime !== undefined &&
-              disableTime > currentTime ? (
-                <Typography color="error" variant="label2">
-                  Maximum commit allowed: {limit.toLocaleString()}
-                </Typography>
-              ) : (
-                <Box height={28}></Box>
-              )}
-            </Box>
-
-            {disableTime !== undefined &&
-            disableTime > currentTime &&
-            isEligible ? (
-              <DisableableModalButton
-                disabled={
-                  Number(usdcAmountToCommit) <= 0 ||
-                  (limit && Number(usdcAmountToCommit) > limit) ||
-                  !connected ||
-                  startTime > currentTime
-                }
-                type="submit"
-                text={needAllowance ? 'Set Allowance' : 'Confirm Deposit'}
-                loading={loading}
-                load_text={loadmsg}
-                onClick={handleSubmit}
-              />
-            ) : (
-              <Button
-                variant="contained"
-                onClick={claimHandler}
-                disabled={redeemed || !connected}
-              >
-                <Typography variant="body3" color={formatColor(neutral.white)}>
-                  {!connected
-                    ? `Please connect your wallet`
-                    : !isEligible
-                    ? 'You are not eligible for this wave'
-                    : redeemed
-                    ? `Already claimed for wave ${waveNum}`
-                    : claimable > 0
-                    ? `Claim IPT for wave ${waveNum}`
-                    : `Nothing to claim`}
-                </Typography>
-              </Button>
-            )}
-          </Box>
-
-          <Box
-            mt={5}
-            display="flex"
-            justifyContent="space-between"
-            flexDirection={{ xs: 'column', md: 'row' }}
-          >
-            <Button href="./book/docs/IPTsale/index.html" target="_blank">
-              Token Sale Rules
-            </Button>
-
-            <Button
-              target="_blank"
-              href="https://etherscan.io/address/0x5a4396a2fe5fd36c6528a441d7a97c3b0f3e8aee"
+            <Box
+              display="flex"
+              mb={2}
+              flexDirection={{ xs: 'column', lg: 'row' }}
             >
-              View Sales Contract
-            </Button>
+              <Typography
+                variant="body3"
+                fontWeight={400}
+                color="#A3A9BA"
+                mr={1}
+              >
+                Remaining IPT for cycle:{' '}
+              </Typography>
+              <Typography variant="body3" fontWeight={400} color="primary.dark">
+                {' '}
+                {iptForSale ? (
+                  iptForSale.toLocaleString()
+                ) : (
+                  <Skeleton
+                    variant="rectangular"
+                    height="16px"
+                    width="50px"
+                    animation="wave"
+                    sx={{
+                      display: 'inline-block',
+                    }}
+                  />
+                )}
+              </Typography>
+            </Box>
+
+            <Box display="flex" flexDirection={{ xs: 'column', lg: 'row' }}>
+              <Typography
+                variant="body3"
+                fontWeight={400}
+                color="#A3A9BA"
+                mr={1}
+              >
+                Sale Price:
+              </Typography>
+              <Typography variant="body3" fontWeight={400} color="primary.dark">
+                {salePrice ? (
+                  `${salePrice}`
+                ) : (
+                  <Skeleton
+                    variant="rectangular"
+                    height="16px"
+                    width="50px"
+                    animation="wave"
+                    sx={{
+                      display: 'inline-block',
+                    }}
+                  />
+                )}
+              </Typography>
+            </Box>
+          </Box>
+          <Box display="flex" flexDirection={{ xs: 'column', lg: 'row' }}>
+            <Typography variant="body3" fontWeight={400} color="#A3A9BA" mr={1}>
+              IPT sold:{' '}
+            </Typography>
+            <Typography variant="body3" fontWeight={400} color="primary.dark">
+              {' '}
+              {iptSold ? (
+                iptSold
+              ) : (
+                <Skeleton
+                  variant="rectangular"
+                  height="16px"
+                  width="50px"
+                  animation="wave"
+                  sx={{
+                    display: 'inline-block',
+                  }}
+                />
+              )}
+            </Typography>
           </Box>
         </Box>
-      )}
+        <Box component="form" onSubmit={handleSubmit} mt={4}>
+          <ModalInputContainer focus={focus}>
+            <Box position="relative">
+              <Button
+                sx={{
+                  minWidth: 'auto',
+                  borderRadius: '50%',
+
+                  width: 30,
+                  height: 30,
+                  paddingY: 0,
+                  paddingX: 2,
+                  top: -3,
+                  mr: 1,
+                }}
+                onClick={() => setIsIPTValue(!isIPTValue)}
+              >
+                <SwapIcon sx={{ width: 30, height: 30 }} />
+              </Button>
+            </Box>
+            <DecimalInput
+              onFocus={toggle}
+              onBlur={toggle}
+              value={amountToCommit}
+              onChange={setAmountToCommit}
+              startAdornment={
+                <InputAdornment position="start">
+                  <Typography variant="label">
+                    {isIPTValue ? 'IPT' : 'USDC'}
+                  </Typography>
+                </InputAdornment>
+              }
+            />
+
+            <Typography whiteSpace="nowrap" variant="label">
+              {secondaryValue} {secondaryValueUnit}
+            </Typography>
+          </ModalInputContainer>
+          <Box height={8} />
+          <DisableableModalButton
+            disabled={Number(amountToCommit) <= 0 || !connected}
+            type="submit"
+            text={hasAllowance ? 'Commit' : 'Set Allowance'}
+            loading={loading}
+            load_text={loadmsg}
+            onClick={handleSubmit}
+          />
+        </Box>
+
+        <Box
+          mt={4}
+          display="flex"
+          justifyContent="space-between"
+          flexDirection={{ xs: 'column', md: 'row' }}
+        >
+          <Button
+            href="./book/docs/IPTsale/index.html"
+            target="_blank"
+            sx={{ width: 'fit-content', left: { xs: 0, lg: -8 } }}
+          >
+            Token Sale Rules{' '}
+            <Box
+              component="img"
+              src="images/up_arrow_blue.png"
+              width={10}
+              height={12}
+              marginX={1}
+              sx={{
+                transform: 'rotate(90deg)',
+              }}
+            />
+          </Button>
+
+          <Button
+            target="_blank"
+            href="https://etherscan.io/address/0xFbD3060Fe1Ed10c34E236Cee837d82F019cF1D1d"
+            sx={{ width: 'fit-content', right: { xs: 0, lg: -8 } }}
+          >
+            View Sales Contract{' '}
+            <Box
+              component="img"
+              src="images/up_arrow_blue.png"
+              width={10}
+              height={12}
+              marginX={1}
+              sx={{
+                transform: 'rotate(90deg)',
+              }}
+            />
+          </Button>
+        </Box>
+
+        <Box mt={3}>
+          <Typography
+            variant="body3"
+            sx={{
+              mb: 1,
+              position: 'relative',
+              display: 'block',
+              lineHeight: 1.25,
+              fontWeight: 400,
+            }}
+          >
+            The new mechanism offers one million (1%) tokens per period at a
+            starting price of ${basePrice.toFixed(2)} and a maximum price of $
+            {(basePrice * 2).toFixed(2)}. The sale has a minimum duration of 35
+            periods, a total of 32 days, to sell 35 million tokens (35% of the
+            total supply) but will continue until the allocated supply is
+            exhausted.
+          </Typography>
+          <br />
+          <Typography
+            variant="body3"
+            sx={{
+              mb: 1,
+              position: 'relative',
+              display: 'block',
+              lineHeight: 1.25,
+              fontWeight: 400,
+            }}
+          >
+            Each period, the sale parameters will reset to the base price ($
+            {basePrice.toFixed(2)}) and tokens offered (1m). The purchaser gets
+            the same price regardless of the number of tokens purchased, but the
+            price updates after each sale based on the number of total tokens
+            purchased.
+          </Typography>
+          <br />
+          <Typography
+            variant="body3"
+            sx={{
+              mb: 2,
+              position: 'relative',
+              display: 'block',
+              lineHeight: 1.25,
+              fontWeight: 400,
+            }}
+          >
+            Rather than doing a traditional 24 hours per period, we've chosen 22
+            hours. By selecting 22 hours, the start time will progressively
+            change by two hours to make the sale more accessible across all time
+            zones.
+          </Typography>
+        </Box>
+
+        <Button onClick={() => setOpenTerms(true)}>View User Agreement</Button>
+      </Box>
     </Box>
   )
 }

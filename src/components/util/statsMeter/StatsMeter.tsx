@@ -1,75 +1,117 @@
-import { Box, LinearProgress, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { Box, CircularProgress, Typography } from '@mui/material'
+import { useEffect, useMemo, useState } from 'react'
 import { formatColor, neutral } from '../../../theme'
 import { useVaultDataContext } from '../../libs/vault-data-provider/VaultDataProvider'
+import { CardContainer } from '../cards/CardContainer'
 import { ToolTip } from '../tooltip/ToolTip'
 
 export const StatsMeter = () => {
-  const [percentBorrowed, setPercentBorrowed] = useState(0)
-  const [percentBorrowedGraph, setPercentBorrowedGraph] = useState(0)
-
-  const [barColor, setBarColor] = useState('success')
+  const [barColor, setBarColor] = useState('#50D66D')
 
   const { borrowingPower, accountLiability } = useVaultDataContext()
 
-  useEffect(() => {
+  const percentBorrowedCalc = useMemo(() => {
     if (borrowingPower && accountLiability) {
-      const borrowPercent = Math.floor(
-        100 * (accountLiability / borrowingPower)
-      )
+      let borrowPercent = 0
+      if (Number(borrowingPower) !== 0) {
+        borrowPercent = Math.floor(
+          100 * (Number(accountLiability) / Number(borrowingPower)))
+      }
 
-      setPercentBorrowed(borrowPercent)
-
-      // limits graph value to 100%
-      setPercentBorrowedGraph(borrowPercent > 100 ? 100 : borrowPercent)
+      return {
+        borrowPercent,
+        borrowPercentGraph: borrowPercent > 100 ? 100 : borrowPercent,
+      }
+    }
+    return {
+      borrowPercent: 0,
+      borrowPercentGraph: 0,
     }
   }, [borrowingPower, accountLiability])
 
   useEffect(() => {
-    if (percentBorrowed > 80) {
-      setBarColor('error')
+    if (percentBorrowedCalc?.borrowPercent > 80) {
+      setBarColor('red')
+    } else {
+      setBarColor('#50D66D')
     }
-  }, [percentBorrowed])
+  }, [percentBorrowedCalc])
 
   return (
-    <Box>
-      <Typography variant="label" color={formatColor(neutral.gray3)}>
-        Vault Stats
-      </Typography>
+    <CardContainer>
+      <Box padding={{ xs: 2, md: 3 }}>
+        <Box lineHeight={0}>
+          <Typography variant="body1" color="text.primary">
+            Borrowing Power
+          </Typography>
+        </Box>
 
-      <LinearProgress
-        color={barColor as any}
-        variant="determinate"
-        value={percentBorrowedGraph}
-        sx={{
-          marginY: 2,
-        }}
-      />
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'inline-flex',
+            justifyContent: 'center',
+            width: '100%',
+            paddingY: { xs: 4, lg: 0 },
+          }}
+        >
+          <CircularProgress
+            variant="determinate"
+            thickness={3}
+            value={percentBorrowedCalc.borrowPercentGraph}
+            sx={{
+              position: 'relative',
+              zIndex: 2,
+              color: barColor,
+            }}
+            size={190}
+          />
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        <ToolTip
-          content={
-            <Typography variant="body3">
-              Maximum amount that your vault can borrow, calculated by the sum of collateral values discounted by the LTV
-            </Typography>
-          }
-          text={`Borrowing Power: ${Math.round(
-            borrowingPower
-          ).toLocaleString()} USDi
+          <CircularProgress
+            variant="determinate"
+            value={100}
+            thickness={3}
+            size={190}
+            sx={{
+              position: 'absolute',
+
+              '& svg': {
+                color: formatColor(neutral.gray5),
+              },
+            }}
+          />
+        </Box>
+
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            flexDirection: { xs: 'column-reverse', lg: 'row' },
+          }}
+        >
+          <ToolTip
+            content={
+              <Typography variant="body3">
+                Maximum amount that your vault can borrow, calculated by the sum
+                of collateral values discounted by the LTV
+              </Typography>
+            }
+            text={`Borrowing Power: ${Math.round(Number(borrowingPower)).toLocaleString()} USDi
           `}
-          text_variant="label2"
-        />
+            text_variant="label_semi"
+          />
 
-        <ToolTip
-          content={
-            <Typography variant="body3">
-              USDi Borrowed / Borrowing Power
-            </Typography>
-          }
-          text={`Percentage Used:  ${percentBorrowed}%`}
-          text_variant="label2"
-        />
+          <ToolTip
+            content={
+              <Typography variant="body3">
+                USDi Borrowed / Borrowing Power
+              </Typography>
+            }
+            text={`USDi Borrowed:  ${percentBorrowedCalc.borrowPercent}%`}
+            text_variant="label_semi"
+          />
+        </Box>
       </Box>
-    </Box>
+    </CardContainer>
   )
 }

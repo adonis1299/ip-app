@@ -1,20 +1,18 @@
-import { StrictMode, Suspense, useContext } from "react";
-import { Routes, Route } from "react-router-dom";
-import "./theme/fonts.css";
-import WhitelistPage from "../src/pages/whitelist";
-import { CssBaseline, StyledEngineProvider } from "@mui/material";
-import { Web3ReactProvider } from "@web3-react/core";
-import { providers } from "ethers";
-import { AppLayout } from "./components/partials/app-layout";
-import { Web3ContextProvider } from "./components/libs/web3-data-provider/Web3Provider";
-import { WalletModalProvider } from "./components/libs/wallet-modal-provider/WalletModalProvider";
-import { ModalContentProvider } from "./components/libs/modal-content-provider/ModalContentProvider";
-import { PaletteModeContextProvider } from "./components/libs/palette-mode-provider/palette-mode-provider";
-import Dashboard from "./pages";
-import PurchasePage from "./pages/sale";
-import RedirectBook from "./pages/book";
-import LandingPage from "./pages/landing";
-import NotFound404Page from "./pages/404";
+import { StrictMode, Suspense } from 'react'
+import { Routes, Route } from 'react-router-dom'
+import './theme/fonts.css'
+
+import { CssBaseline, StyledEngineProvider } from '@mui/material'
+import { providers } from 'ethers'
+import { AppLayout } from './components/partials/app-layout'
+import { Web3ContextProvider } from './components/libs/web3-data-provider/Web3Provider'
+import { WalletModalProvider } from './components/libs/wallet-modal-provider/WalletModalProvider'
+import { ModalContentProvider } from './components/libs/modal-content-provider/ModalContentProvider'
+import { PaletteModeContextProvider } from './components/libs/palette-mode-provider/palette-mode-provider'
+import Dashboard from './pages'
+import PurchasePage from './pages/sale'
+import LandingPage from './pages/landing'
+import NotFound404Page from './pages/404'
 import {
   DepositWithdrawUSDCModal,
   DepositWithdrawCollateralModal,
@@ -24,34 +22,51 @@ import {
   WithdrawCollateralConfirmationModal,
   DepositCollateralConfirmationModal,
   DelegateModal,
+  UndelegateModal,
   DelegateIPTModal,
   TransactionStatusModal,
-} from "./components/util/modal";
-import { ClaimModal } from "./components/util/modal/ClaimModal";
-import { RolodexContentProvider } from "./components/libs/rolodex-data-provider/RolodexDataProvider";
-import { SwapTokenProvider } from "./components/libs/swap-token-provider/SwapTokenProvider";
-import { VaultDataProvider } from "./components/libs/vault-data-provider/VaultDataProvider";
-import { StableCoinsProvider } from "./components/libs/stable-coins-provider/StableCoinsProvider";
-import { AppGovernanceProvider } from "./components/libs/app-governance-provider/AppGovernanceProvider";
-import { WhitepaperPage } from "./pages/whitepaper";
-import { TermsPage } from "./pages/terms";
-import { TestingPage } from "./pages/playground";
+} from './components/util/modal'
+import { ClaimModal } from './components/util/modal/ClaimModal'
+import { RolodexContentProvider } from './components/libs/rolodex-data-provider/RolodexDataProvider'
+import { SwapTokenProvider } from './components/libs/swap-token-provider/SwapTokenProvider'
+import { VaultDataProvider } from './components/libs/vault-data-provider/VaultDataProvider'
+import { StableCoinsProvider } from './components/libs/stable-coins-provider/StableCoinsProvider'
+import { AppGovernanceProvider } from './components/libs/app-governance-provider/AppGovernanceProvider'
+import { WhitepaperPage } from './pages/whitepaper'
+import { TermsPage } from './pages/terms'
+import { TestingPage } from './pages/playground'
+import { MerkleRedeemContextProvider } from './components/libs/merkle-redeem-provider/MerkleRedeemProvider'
+import { Governance } from './pages/governance'
+import { EnableCappedTokenModal } from './components/util/modal/EnableCappedTokenModal'
+import { RedirectTo } from './components/util/redirect'
+import { EthereumClient, w3mConnectors, w3mProvider } from '@web3modal/ethereum'
+import { Web3Modal } from '@web3modal/react'
+import { configureChains, createConfig, WagmiConfig } from 'wagmi'
+import { mainnet, optimism } from 'wagmi/chains'
 
-// https://github.com/NoahZinsmeister/web3-react/tree/v6/docs
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getWeb3Library(provider: any): providers.Web3Provider {
-  const library = new providers.Web3Provider(provider);
-  library.pollingInterval = 12000;
-  return library;
-}
+const chains = [mainnet, optimism]
+const projectId = '1076f5912040f4580a3c3dd2b2df8a51'
+
+const { publicClient, webSocketPublicClient } = configureChains(chains, [w3mProvider({ projectId })])
+const wagmiConfig = createConfig({
+  autoConnect: true,
+  connectors: w3mConnectors({ projectId, chains }),
+  publicClient,
+  webSocketPublicClient,
+})
+const ethereumClient = new EthereumClient(wagmiConfig, chains)
 
 const WalletContext = (props: { children: any }) => {
   return (
-    <Web3ReactProvider getLibrary={getWeb3Library}>
-      {props.children}
-    </Web3ReactProvider>
-  );
-};
+    <>
+      <WagmiConfig config={wagmiConfig}>
+        {props.children}
+      </WagmiConfig>
+
+      <Web3Modal projectId={projectId} ethereumClient={ethereumClient} />
+    </>
+  )
+}
 
 const DashboardContext = (props: { children: any }) => {
   return (
@@ -59,34 +74,38 @@ const DashboardContext = (props: { children: any }) => {
       <RolodexContentProvider>
         <StableCoinsProvider>
           <VaultDataProvider>
-            <ModalContentProvider>
-              <AppGovernanceProvider>
-                <>
-                  <WalletModalProvider>
-                    <>
-                      <SwapTokenProvider>{props.children}</SwapTokenProvider>
-                      <DelegateModal />
-                      <DelegateIPTModal />
-                      <DepositWithdrawCollateralModal />
-                      <DepositCollateralConfirmationModal />
-                      <WithdrawCollateralConfirmationModal />
-                      <DepositWithdrawUSDCModal />
-                      <BorrowRepayModal />
-                      <DepositUSDCConfirmationModal />
-                      <WithdrawUSDCConfirmationModal />
-                      <ClaimModal />
-                      <TransactionStatusModal />
-                    </>
-                  </WalletModalProvider>
-                </>
-              </AppGovernanceProvider>
-            </ModalContentProvider>
+            <MerkleRedeemContextProvider>
+              <ModalContentProvider>
+                <AppGovernanceProvider>
+                  <>
+                    <WalletModalProvider>
+                      <>
+                        <SwapTokenProvider>{props.children}</SwapTokenProvider>
+                        <DelegateModal />
+                        <UndelegateModal />
+                        <DelegateIPTModal />
+                        <DepositWithdrawCollateralModal />
+                        <DepositCollateralConfirmationModal />
+                        <WithdrawCollateralConfirmationModal />
+                        <DepositWithdrawUSDCModal />
+                        <BorrowRepayModal />
+                        <DepositUSDCConfirmationModal />
+                        <WithdrawUSDCConfirmationModal />
+                        <EnableCappedTokenModal />
+                        <ClaimModal />
+                        <TransactionStatusModal />
+                      </>
+                    </WalletModalProvider>
+                  </>
+                </AppGovernanceProvider>
+              </ModalContentProvider>
+            </MerkleRedeemContextProvider>
           </VaultDataProvider>
         </StableCoinsProvider>
       </RolodexContentProvider>
     </Web3ContextProvider>
-  );
-};
+  )
+}
 
 const AppRouter = () => {
   return (
@@ -97,26 +116,34 @@ const AppRouter = () => {
           element={
             <Web3ContextProvider>
               <RolodexContentProvider>
-                <ModalContentProvider>
-                  <WalletModalProvider>
-                    <>
-                      <PurchasePage />
-                      <TransactionStatusModal />
-                    </>
-                  </WalletModalProvider>
-                </ModalContentProvider>
+                <MerkleRedeemContextProvider>
+                  <ModalContentProvider>
+                    <WalletModalProvider>
+                      <>
+                        <PurchasePage />
+                        <TransactionStatusModal />
+                      </>
+                    </WalletModalProvider>
+                  </ModalContentProvider>
+                </MerkleRedeemContextProvider>
               </RolodexContentProvider>
             </Web3ContextProvider>
           }
         />
-        <Route path={`/whitelist`} element={<WhitelistPage />} />
         <Route path={`/landing`} element={<LandingPage />} />
         <Route path={`/whitepaper`} element={<WhitepaperPage />} />
         <Route path={`/terms`} element={<TermsPage />} />
-        <Route path={`/docs`} element={<RedirectBook />} />
-        <Route path={`/book`} element={<RedirectBook />} />
+        <Route
+          path={`/docs`}
+          element={<RedirectTo url="book/docs/intro/index.html" />}
+        />
+        <Route
+          path={`/book`}
+          element={<RedirectTo url="book/docs/intro/index.html" />}
+        />
         <Route path={`/testing`} element={<TestingPage />} />
         <Route path={`*`} element={<NotFound404Page />} />
+
         <Route
           path={`/`}
           element={
@@ -127,10 +154,32 @@ const AppRouter = () => {
             </DashboardContext>
           }
         />
+
+        <Route
+          path={`/proposal`}
+          element={
+            <DashboardContext>
+              <AppLayout>
+                <Governance />
+              </AppLayout>
+            </DashboardContext>
+          }
+        />
+
+        <Route
+          path={`/proposal/:id`}
+          element={
+            <DashboardContext>
+              <AppLayout>
+                <Governance />
+              </AppLayout>
+            </DashboardContext>
+          }
+        />
       </Routes>
     </WalletContext>
-  );
-};
+  )
+}
 
 const App = () => {
   return (
@@ -146,7 +195,7 @@ const App = () => {
         </StyledEngineProvider>
       </Suspense>
     </StrictMode>
-  );
-};
+  )
+}
 
-export default App;
+export default App

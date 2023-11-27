@@ -1,50 +1,8 @@
 import { Rolodex } from '../chain/rolodex/rolodex'
+import initializeToken from '../components/util/tokens/initializeToken'
+import { CollateralTokens, Token, TokenInfo } from '../types/token'
 import { ChainIDs } from './chains'
-export interface Token {
-  name: string
-  address: string
-  ticker: string
-  value: number
-
-  wallet_balance?: number
-  wallet_amount?: number
-
-  vault_balance?: number
-  vault_amount?: number
-  vault_unformatted_amount?: string
-
-  token_LTV?: number
-  token_penalty?: number
-
-  can_delegate?: boolean
-}
-
-export const chainsToTokens = {
-  WBTC: {
-    [ChainIDs.MAINNET]: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
-    [ChainIDs.ROPSTEN]: '0x442Be68395613bDCD19778e761f03261ec46C06D',
-    [ChainIDs.GOERLI]: '0x442Be68395613bDCD19778e761f03261ec46C06D',
-    [ChainIDs.POLYGON]: '0xa8A6d7c39270ddc658DC53ECbd0500a4C64C9Cc9',
-  },
-  WETH: {
-    [ChainIDs.MAINNET]: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-    [ChainIDs.ROPSTEN]: '0xc778417E063141139Fce010982780140Aa0cD5Ab',
-    [ChainIDs.GOERLI]: '0xc778417E063141139Fce010982780140Aa0cD5Ab',
-    [ChainIDs.POLYGON]: '0x8afBfe06dA3D035c82C5bc55C82EB3FF05506a20',
-  },
-  stETH: {
-    [ChainIDs.MAINNET]: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
-    [ChainIDs.ROPSTEN]: '0x0000000000000000000000000000000000000000',
-    [ChainIDs.GOERLI]: '0x0000000000000000000000000000000000000000',
-    [ChainIDs.POLYGON]: '0x0000000000000000000000000000000000000000',
-  },
-  UNI: {
-    [ChainIDs.MAINNET]: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
-    [ChainIDs.ROPSTEN]: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
-    [ChainIDs.GOERLI]: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
-    [ChainIDs.POLYGON]: '0xBAB395136FaEa31F33f32737218D79E2e92b32C1',
-  },
-}
+import { tickerToName, tickerToDecimals, tokensToChains } from './tokensToChains'
 
 export const getStablecoins = (
   rolodex: Rolodex
@@ -53,92 +11,76 @@ export const getStablecoins = (
   USDC: Token
 } => {
   return {
-    USDI: {
+    USDI: initializeToken({
       name: 'USDI',
       address: rolodex?.addressUSDI,
       ticker: 'USDI',
-      value: 1,
-      wallet_balance: undefined,
-      wallet_amount: undefined,
-      vault_unformatted_amount: '0',
-    },
-    USDC: {
+    }),
+    USDC: initializeToken({
       name: 'USDC',
       address: rolodex?.addressUSDC!,
       ticker: 'USDC',
-      value: 1,
-      wallet_balance: undefined,
-      wallet_amount: undefined,
-      vault_unformatted_amount: '0',
-    },
+      decimals: 6,
+    }),
   }
 }
 
-export interface CollateralTokens {
-  WETH: Token
-  UNI: Token
-  WBTC: Token
-  stETH: Token
-  [key: string]: Token
+const initToken = (ticker: string, token: TokenInfo): Token => {
+  let name = ticker
+  if (Object.prototype.hasOwnProperty.call(tickerToName, ticker)) {
+    name = tickerToName[ticker]
+  }
+  let t = initializeToken({
+    name: name,
+    ticker: ticker,
+    address: token.addr!,
+    capped_token: token.capped_addr !== undefined,
+    capped_address: token.capped_addr,
+    can_delegate: token.can_delegate ?? false,
+    bpt: token.bpt ?? false,
+    icons: token.icons ?? undefined,
+    can_wrap: token.can_wrap ?? false,
+    unwrapped: token.can_wrap && token.unwrapped ? token.unwrapped : undefined,
+    display: token.display ?? true,
+  })
+  if (Object.prototype.hasOwnProperty.call(tickerToDecimals, ticker)) {
+    t.decimals = tickerToDecimals[ticker]
+  }
+  return t
 }
+
 export const getTokensListOnCurrentChain = (
   chain_id: ChainIDs
 ): CollateralTokens => {
-  return {
-    WETH: {
-      name: 'Wrapped ETH',
-      address: chainsToTokens.WETH[chain_id],
-      ticker: 'WETH',
-      value: 0,
-      vault_balance: 0,
-      vault_amount: 0,
-      wallet_balance: 0,
-      wallet_amount: 0,
-      token_LTV: 0,
-      token_penalty: 0,
-      vault_unformatted_amount: '0',
-    },
-    stETH: {
-      name: 'Lido Staked ETH',
-      address: chainsToTokens.stETH[chain_id],
-      ticker: 'stETH',
-      value: 0,
-      vault_balance: 0,
-      vault_amount: 0,
-      wallet_balance: 0,
-      wallet_amount: 0,
-      token_LTV: 0,
-      token_penalty: 0,
-      vault_unformatted_amount: '0',
-    },
-    WBTC: {
-      name: 'Wrapped BTC',
-      address: chainsToTokens.WBTC[chain_id],
-      ticker: 'WBTC',
-      value: 0,
-      vault_balance: 0,
-      vault_amount: 0,
-      wallet_balance: 0,
-      wallet_amount: 0,
-      token_LTV: 0,
-      token_penalty: 0,
-      vault_unformatted_amount: '0',
-    },
-    UNI: {
-      name: 'Uniswap',
-      address: chainsToTokens.UNI[chain_id],
-      ticker: 'UNI',
-      value: 0,
-      vault_balance: 0,
-      vault_amount: 0,
-      wallet_balance: 0,
-      wallet_amount: 0,
-      token_LTV: 0,
-      token_penalty: 0,
-      can_delegate: true,
-      vault_unformatted_amount: '0',
-    },
+  let out: CollateralTokens = {}
+  for (const ticker in tokensToChains) {
+    let token = tokensToChains[ticker][chain_id]
+    if (token && token.addr) {
+      out[ticker] = initToken(ticker, token)
+    }
+    // if (token && token.addr) {
+    //   let name = ticker
+    //   if (Object.prototype.hasOwnProperty.call(tickerToName, ticker)) {
+    //     name = tickerToName[ticker]
+    //   }
+    //   out[ticker] = initializeToken({
+    //     name: name,
+    //     ticker: ticker,
+    //     address: token.addr!,
+    //     capped_token: token.capped_addr !== undefined,
+    //     capped_address: token.capped_addr,
+    //     can_delegate: token.can_delegate ?? false,
+    //     bpt: token.bpt ?? false,
+    //     icons: token.icons ?? undefined,
+    //     can_wrap: token.can_wrap ?? false,
+    //     unwrapped: token.can_wrap ? initializeToken(token.unwrapped)
+    //   })
+    //   if (Object.prototype.hasOwnProperty.call(tickerToDecimals, ticker)) {
+    //     out[ticker].decimals = tickerToDecimals[ticker]
+    //   }
+    // }
   }
+  return out
 }
 
 export const getTokenFromTicker = (

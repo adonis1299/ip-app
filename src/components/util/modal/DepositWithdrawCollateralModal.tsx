@@ -1,5 +1,6 @@
 import { Box, Typography } from '@mui/material'
 import { formatColor, neutral } from '../../../theme'
+import SVGBox from '../../icons/misc/SVGBox'
 import {
   ModalType,
   useModalContext,
@@ -8,6 +9,10 @@ import { BaseSwitch } from '../switch'
 import { BaseModal } from './BaseModal'
 import { DepositCollateralContent } from './ModalContent/DepositCollateralContent'
 import { WithdrawCollateralContent } from './ModalContent/WithdrawCollateralContent'
+import { BPT_WARNING_MSG, MKR_WARNING_MSG } from '../../../constants'
+import CheckboxButton from '../button/CheckBox'
+import WarningAlert from './WarningAlert'
+import { useVaultDataContext } from '../../libs/vault-data-provider/VaultDataProvider'
 
 export const DepositWithdrawCollateralModal = () => {
   const {
@@ -18,7 +23,12 @@ export const DepositWithdrawCollateralModal = () => {
     setCollateralWithdrawAmount,
     setCollateralDepositAmountMax,
     setCollateralWithdrawAmountMax,
+    stake,
+    setStake,
+    setWrap,
+    setCollateralToken,
   } = useModalContext()
+  const { tokens } = useVaultDataContext()
 
   const isDepositType = type === ModalType.DepositCollateral
 
@@ -50,6 +60,40 @@ export const DepositWithdrawCollateralModal = () => {
         onOptionChange={onSwitch}
         defaultIsOption1={isDepositType}
       />
+      {type == ModalType.DepositCollateral && collateralToken.can_wrap && (
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'row-reverse',
+          mt: 1,
+          width: '100%',
+        }}>
+          <BaseSwitch
+            option1={Array.from(collateralToken.ticker)[0] == 'w' ? collateralToken.ticker : collateralToken.unwrapped!}
+            option2={Array.from(collateralToken.ticker)[0] == 'w' ? collateralToken.unwrapped! : collateralToken.ticker}
+            onOptionChange={() => {
+              const other = tokens![collateralToken.unwrapped!]
+              if (Array.from(collateralToken.ticker)[0] == 'w') {
+                setWrap(true)
+                if (other.price == 0) {
+                  other.price = tokens!['WETH'].price
+                }
+              } else {
+                setWrap(false)
+              }
+              setCollateralDepositAmount('')
+              setCollateralDepositAmountMax(false)
+              setCollateralToken(other)
+            }}
+            defaultIsOption1={true}
+          />
+        </Box>
+      )}
+      {type == ModalType.WithdrawCollateral && collateralToken.ticker == 'MKR' && (
+        <WarningAlert msg={MKR_WARNING_MSG}/>
+      )}
+      {type == ModalType.WithdrawCollateral && collateralToken.bpt && (
+        <WarningAlert msg={BPT_WARNING_MSG}/>
+      )}
       <Box
         sx={{
           display: 'flex',
@@ -59,27 +103,28 @@ export const DepositWithdrawCollateralModal = () => {
           columnGap: 2,
         }}
       >
-        <Box
-          component="img"
-          width={80}
-          height={80}
-          src={`images/${collateralToken.ticker}.svg`}
+        <SVGBox
+          width={40}
+          height={40}
+          svg_name={collateralToken.ticker}
           alt={collateralToken.name}
-        ></Box>
+        />
         <Box>
           <Typography variant="body3" color={formatColor(neutral.gray3)}>
             1 {collateralToken.ticker}
           </Typography>
-          <Typography variant="subtitle1" color="text.primary" mb={1}>
+          <Typography variant="h7" display="block" color="text.primary" mb={1}>
             $
-            {collateralToken.value.toLocaleString(undefined, {
+            {collateralToken.price.toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </Typography>
         </Box>
       </Box>
-
+      {type == ModalType.DepositCollateral && collateralToken.bpt && (
+        <CheckboxButton onChange={setStake} state={stake} label={'Stake'} />
+      )}
       {isDepositType ? (
         <DepositCollateralContent />
       ) : (

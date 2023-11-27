@@ -1,12 +1,9 @@
 import { ContractReceipt, ContractTransaction } from 'ethers'
 import { createContext, useState, useContext } from 'react'
-import {
-  getStablecoins,
-  Token,
-  getTokensListOnCurrentChain,
-} from '../../../chain/tokens'
-import { useRolodexContext } from '../rolodex-data-provider/RolodexDataProvider'
-import { useWeb3Context } from '../web3-data-provider/Web3Provider'
+import { getTokensListOnCurrentChain } from '../../../chain/tokens'
+import { Token } from '../../../types/token'
+import { useStableCoinsContext } from '../stable-coins-provider/StableCoinsProvider'
+import { DEFAULT_CHAIN } from '../../../constants'
 
 export enum ModalType {
   None = '',
@@ -22,8 +19,11 @@ export enum ModalType {
   DepositCollateralConfirmation = 'DEPOSIT_COLLATERAL_CONFIRMATION',
   WithdrawCollateralConfirmation = 'WITHDRAW_COLLATERAL_CONFIRMATION',
   Delegate = 'DELEGATE',
+  Undelegate = 'UNDELEGATE',
   DelegateIPT = 'DELEGATE_IPT',
   TransactionStatus = 'TRANSACTION_STATUS',
+  EnableCappedToken = 'ENABLE_CAPPED_TOKEN',
+  SetAllowance = 'SET_ALLOWANCE',
 }
 
 type TransactionState = 'PENDING' | 'SUCCESS' | 'FAILURE' | null
@@ -32,6 +32,8 @@ interface DepositWithdrawUSDC {
   token: Token
   amountToDeposit: string
   amountToWithdraw: string
+  maxWithdraw: boolean
+  maxDeposit: boolean
 }
 
 export type ModalContextType = {
@@ -50,23 +52,19 @@ export type ModalContextType = {
   collateralWithdrawAmountMax: boolean
   setCollateralDepositAmountMax: (val: boolean) => void
   setCollateralWithdrawAmountMax: (val: boolean) => void
+
   // Control USDC
   USDC: DepositWithdrawUSDC
-  updateUSDC: (prop: string, val: string) => void
+  updateUSDC: (prop: string, val: any) => void
 
   // Transaction State
   transactionState: TransactionState
   updateTransactionState: (val: ContractReceipt | ContractTransaction) => void
   transaction: ContractReceipt | ContractTransaction | null
-}
-
-const createDepositWithdrawUSDC = () => {
-  const rolodex = useRolodexContext()
-  return {
-    token: getStablecoins(rolodex!).USDC,
-    amountToDeposit: '0',
-    amountToWithdraw: '0',
-  }
+  stake: boolean
+  setStake: (val: boolean) => void
+  wrap: boolean
+  setWrap: (val: boolean) => void
 }
 
 export const ModalContentContext = createContext({} as ModalContextType)
@@ -76,11 +74,9 @@ export const ModalContentProvider = ({
 }: {
   children: React.ReactElement
 }) => {
-  const { chainId } = useWeb3Context()
-
   const [type, setType] = useState<ModalType | null>(null)
   const [collateralToken, setCollateralToken] = useState<Token>(
-    getTokensListOnCurrentChain(chainId)['WETH']
+    getTokensListOnCurrentChain(DEFAULT_CHAIN)['WETH']
   )
   const [collateralDepositAmount, setCollateralDepositAmount] = useState('')
   const [collateralWithdrawAmount, setCollateralWithdrawAmount] = useState('')
@@ -88,12 +84,26 @@ export const ModalContentProvider = ({
     useState(false)
   const [collateralWithdrawAmountMax, setCollateralWithdrawAmountMax] =
     useState(false)
+  
+  const [stake, setStake] = useState(true)
+  const [wrap, setWrap] = useState(false)
+
+  const { USDC:usdcContext } = useStableCoinsContext()
+  const createDepositWithdrawUSDC = () => {
+    return {
+      token: usdcContext,
+      amountToDeposit: '0',
+      amountToWithdraw: '0',
+      maxWithdraw: false,
+      maxDeposit: false,
+    }
+  }
 
   const [USDC, setUSDC] = useState<DepositWithdrawUSDC>(
-    createDepositWithdrawUSDC()
+    createDepositWithdrawUSDC
   )
 
-  const updateUSDC = (prop: string, val: string) => {
+  const updateUSDC = (prop: string, val: any) => {
     setUSDC({
       ...USDC,
       [prop]: val,
@@ -150,6 +160,10 @@ export const ModalContentProvider = ({
         transactionState,
         updateTransactionState,
         transaction,
+        stake,
+        setStake,
+        wrap,
+        setWrap,
       }}
     >
       {children}

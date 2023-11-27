@@ -2,22 +2,34 @@ import { Box, Typography, Button } from '@mui/material'
 import { useLight } from '../../../hooks/useLight'
 import { formatColor, neutral } from '../../../theme'
 import { DecimalInput } from '../textFields'
-import { Token } from '../../../chain/tokens'
 import { WithDots } from '../loading'
+import { Token } from '../../../types/token'
+import SVGBox from '../../icons/misc/SVGBox'
 
 interface TokenSelectProps {
   token: Token
   tokenAmount: string
   setTokenAmount: (amount: string) => void
+  onMaxBalanceClick?: () => void
+  disableSetMax?: boolean
 }
 
 export const TokenSelect = (props: TokenSelectProps) => {
-  const { token, tokenAmount, setTokenAmount } = props
+  const {
+    token,
+    tokenAmount,
+    setTokenAmount,
+    onMaxBalanceClick,
+    disableSetMax = false,
+  } = props
   const isLight = useLight()
 
-  const setBalance = () => {
+  const setMax = () => {
     if (token.wallet_balance != undefined) {
-      setTokenAmount(token.wallet_balance.toString())
+      setTokenAmount(token.wallet_balance)
+      if (onMaxBalanceClick) {
+        onMaxBalanceClick()
+      }
     }
   }
 
@@ -30,7 +42,7 @@ export const TokenSelect = (props: TokenSelectProps) => {
         backgroundColor: isLight
           ? formatColor(neutral.gray5)
           : formatColor(neutral.gray4),
-        paddingX: 4,
+        paddingX: { xs: 2, lg: 4 },
         paddingY: 2,
         borderRadius: 5,
         boxShadow: '0px 4px 4px 0px rgba(0,0,0, 0.05)',
@@ -49,12 +61,7 @@ export const TokenSelect = (props: TokenSelectProps) => {
             justifyContent: 'flex-end',
           }}
         >
-          <Box
-            component="img"
-            width={24}
-            height={24}
-            src={`images/${token.ticker}.svg`}
-          ></Box>
+          <SVGBox svg_name={token.ticker} height={24} width={24} />
 
           <Typography
             sx={{
@@ -63,24 +70,27 @@ export const TokenSelect = (props: TokenSelectProps) => {
             }}
             variant="body2_semi"
           >
-            {token.ticker}
+            {token?.ticker}
           </Typography>
         </Box>
         <Box display="flex" justifyContent="end">
           <Typography
-            variant="label2"
+            variant="label_semi"
             sx={{
-              color: formatColor(neutral.gray3),
+              color: 'text.primary',
               textAlign: 'right',
               mt: 1,
+              display: 'flex',
             }}
           >
             Balance:
-            <br />
             <Button
               sx={{
+                fontSize: 14,
+                fontWeight: 400,
                 paddingY: 0,
-                paddingX: 1,
+                paddingLeft: 0.5,
+                color: 'text.primary',
                 marginRight: -1,
                 height: 'auto',
                 width: 'auto',
@@ -90,11 +100,11 @@ export const TokenSelect = (props: TokenSelectProps) => {
                   color: formatColor(neutral.gray3),
                 },
               }}
-              onClick={setBalance}
-              disabled={token.wallet_balance === undefined}
+              onClick={setMax}
+              disabled={token.wallet_balance === undefined || disableSetMax}
             >
               <WithDots val={token.wallet_balance != undefined}>
-                {token.wallet_balance?.toLocaleString(undefined, {
+                {Number(token.wallet_balance).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}

@@ -2,6 +2,7 @@ import { Button, Typography } from '@mui/material'
 import { Box } from '@mui/system'
 import { ForwardIcon } from '../../components/icons/misc/ForwardIcon'
 import { formatColor, neutral } from '../../theme'
+
 export const Fractional: React.FC = () => {
   return (
     <Box
@@ -49,7 +50,7 @@ export const Fractional: React.FC = () => {
             </Typography>
             <Typography
               display="flex"
-              variant="body3"
+              variant="body1"
               sx={{
                 marginLeft: 0,
                 color: formatColor(neutral.gray8),
@@ -68,7 +69,12 @@ export const Fractional: React.FC = () => {
               >
                 Learn More{' '}
                 <ForwardIcon
-                  sx={{ width: 12, ml: 1, top: 1, position: 'relative' }}
+                  sx={{
+                    width: 12,
+                    ml: 1,
+                    position: 'relative',
+                    stroke: 'black',
+                  }}
                 />
               </Button>
             </Typography>

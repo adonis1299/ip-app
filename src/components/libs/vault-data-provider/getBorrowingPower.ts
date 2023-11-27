@@ -1,17 +1,19 @@
+import { utils } from 'ethers'
 import { Rolodex } from '../../../chain/rolodex/rolodex'
-import { BN } from '../../../easy/bn'
+import { BNtoDec } from '../../../easy/bn'
 
 export const getVaultBorrowingPower = async (
   vaultID: string,
   rolodex: Rolodex
-): Promise<number> => {
+): Promise<string> => {
   try {
     // get user balance
     const BP = await rolodex.VC?.vaultBorrowingPower(vaultID)
     if (BP?._isBigNumber) {
-      return BP.div(BN('1e16')).toNumber() / 100
+      return utils.formatUnits(BP, 18)
+      //return BNtoDec(BP)
     }
-    return 0
+    return '0'
   } catch (err) {
     console.error(err)
     throw new Error('Error getting Borrowing Power')

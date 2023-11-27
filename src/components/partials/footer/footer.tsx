@@ -1,35 +1,13 @@
 import { Box, Typography, useTheme, Link as MuiLink } from '@mui/material'
 import { Link } from '../../util/link'
 import { useLight } from '../../../hooks/useLight'
-
-const footerLinks = [
-  {
-    title: 'Protocol',
-    links: [
-      { label: 'Whitepaper', href: '#/whitepaper' },
-      { label: 'Docs & Guides', href: '#/docs' },
-      { label: 'Whitelist', href: '#/whitelist' },
-      { label: 'Sale', href: '#/sale' },
-      {
-        label: 'Audit',
-        href: 'https://github.com/gfx-labs/ip-contracts/blob/master/audit/GFX_IP_Protocol_Audit_Report.pdf',
-      },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'Developer', href: 'https://github.com/gfx-labs/ip-contracts' },
-      { label: 'Contact', href: 'https://discord.gg/s9Wja2tb6k' },
-      { label: 'Terms of Use', href: '#/terms' },
-    ],
-  },
-]
+import footerLinks from './footerLinks'
+import SVGBox from '../../icons/misc/SVGBox'
 
 export const Footer = () => {
   return (
     <Box
-      paddingTop={{ xs: 13, sm: 5 }}
+      paddingTop={{ xs: 8, sm: 5 }}
       paddingBottom={{ xs: 7, sm: 3 }}
       px={{ xs: 4, md: 4 }}
       sx={{
@@ -54,6 +32,8 @@ const FooterContent = () => {
       <Box
         sx={{
           display: 'flex',
+          flexWrap: 'wrap',
+          rowGap: 4,
           justifyContent: { xs: 'space-evenly', md: 'space-evenly' },
           maxWidth: 900,
           margin: 'auto',
@@ -64,10 +44,15 @@ const FooterContent = () => {
       >
         {footerLinks.map((navItem, index) => {
           return (
-            <Box key={index}>
-              <Typography variant="body3" fontWeight={700}>
-                {navItem.title}
-              </Typography>
+            <Box
+              key={index}
+              sx={{
+                marginLeft: 'auto',
+                marginRight: { xs: 'unset', md: 'auto' },
+                width: { xs: '40%', md: 'fit-content' },
+              }}
+            >
+              <Typography variant="body1">{navItem.title}</Typography>
               <Box
                 sx={{
                   display: 'flex',
@@ -82,7 +67,7 @@ const FooterContent = () => {
                       target="_blank"
                       key={link.label}
                       href={link.href}
-                      variant="body3"
+                      variant="label_semi"
                       color="footer.color"
                       paddingBottom={1}
                       sx={{
@@ -112,8 +97,8 @@ const FooterContent = () => {
           },
         }}
       >
-        <Typography color="footer.color" variant="label2">
-          Interest Protocol 2022
+        <Typography color="footer.color" variant="label_semi">
+          Interest Protocol {new Date().getFullYear()}
         </Typography>
         <Box>
           <MuiLink
@@ -122,13 +107,12 @@ const FooterContent = () => {
             target="_blank"
             paddingBottom={2}
           >
-            <Box
-              component="img"
-              src={`images/discord_icon_${isLight ? 'black' : 'grey'}.svg`}
-              width="24px"
-              height="24px"
-              marginX={3}
-            ></Box>
+            <SVGBox
+              svg_name={isLight ? 'discord_icon_black' : 'discord_icon_grey'}
+              width={24}
+              height={24}
+              sx={{ marginX: 3 }}
+            />
           </MuiLink>
           <MuiLink
             component={Link}
@@ -136,13 +120,14 @@ const FooterContent = () => {
             target="_blank"
             paddingBottom={2}
           >
-            <Box
-              component="img"
-              src={`images/twitter_bird_icon_${isLight ? 'black' : 'grey'}.svg`}
-              width="25px"
-              height="26px"
-              marginX={3}
-            ></Box>
+            <SVGBox
+              svg_name={
+                isLight ? 'twitter_bird_icon_black' : 'twitter_bird_icon_grey'
+              }
+              width={25}
+              height={26}
+              sx={{ marginX: 3 }}
+            />
           </MuiLink>
           <MuiLink
             component={Link}
@@ -150,13 +135,12 @@ const FooterContent = () => {
             target="_blank"
             paddingBottom={2}
           >
-            <Box
-              component="img"
-              src={`images/medium_icon_${isLight ? 'black' : 'grey'}.svg`}
-              width="24px"
-              height="24px"
-              marginX={3}
-            ></Box>
+            <SVGBox
+              svg_name={isLight ? 'medium_icon_black' : 'medium_icon_grey'}
+              width={24}
+              height={24}
+              sx={{ marginX: 3 }}
+            />
           </MuiLink>
         </Box>
       </Box>

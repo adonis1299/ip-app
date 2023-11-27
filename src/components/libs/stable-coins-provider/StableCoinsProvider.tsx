@@ -5,8 +5,9 @@ import {
   ReactElement,
   createContext,
 } from 'react'
-import { getStablecoins, Token } from '../../../chain/tokens'
+import { getStablecoins } from '../../../chain/tokens'
 import { getBalanceOf } from '../../../contracts/ERC20/getBalanceOf'
+import { Token } from '../../../types/token'
 import { useRolodexContext } from '../rolodex-data-provider/RolodexDataProvider'
 import { useWeb3Context } from '../web3-data-provider/Web3Provider'
 
@@ -32,7 +33,7 @@ export const StableCoinsProvider = ({
     if (rolodex && rolodex?.addressUSDC) {
       getBalanceOf(currentAccount, rolodex.addressUSDC, rolodex.provider).then(
         (res) => {
-          setUSDC({ ...USDC, wallet_balance: res.num, wallet_amount: res.num })
+          setUSDC({ ...USDC, wallet_balance: res.str, wallet_amount: res.bn })
         }
       )
     }
@@ -42,7 +43,7 @@ export const StableCoinsProvider = ({
     if (rolodex && rolodex?.addressUSDI) {
       getBalanceOf(currentAccount, rolodex.addressUSDI, rolodex.provider).then(
         (res) =>
-          setUSDI({ ...USDI, wallet_balance: res.num, wallet_amount: res.num })
+          setUSDI({ ...USDI, wallet_balance: res.str, wallet_amount: res.bn })
       )
     }
   }, [currentAccount, dataBlock, chainId, rolodex])

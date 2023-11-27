@@ -1,29 +1,41 @@
-import { Box, Typography, Link as MuiLink, Button } from "@mui/material";
-import { useLight } from "../../../hooks/useLight";
-import { formatColor, neutral } from "../../../theme";
-import { CircleExclamationIcon } from "../../icons/misc/CircleExclamationIcon";
+import { Box, Typography, Link as MuiLink, Button } from '@mui/material'
+import { useLight } from '../../../hooks/useLight'
+import { formatColor, neutral } from '../../../theme'
+import { CircleExclamationIcon } from '../../icons/misc/CircleExclamationIcon'
 import {
   ModalType,
   useModalContext,
-} from "../../libs/modal-content-provider/ModalContentProvider";
-import { Spinner } from "../loading";
-import { BaseModal } from "./BaseModal";
-import { Chains } from "../../../chain/chains";
-import { useWeb3Context } from "../../libs/web3-data-provider/Web3Provider";
-import { ContractReceipt, ContractTransaction } from "ethers";
+} from '../../libs/modal-content-provider/ModalContentProvider'
+import { Spinner } from '../loading'
+import { BaseModal } from './BaseModal'
+import { Chains } from '../../../chain/chains'
+import { useWeb3Context } from '../../libs/web3-data-provider/Web3Provider'
+import { ContractReceipt, ContractTransaction } from 'ethers'
+import { useVaultDataContext } from '../../libs/vault-data-provider/VaultDataProvider'
+import { useEffect } from 'react'
+import SVGBox from '../../icons/misc/SVGBox'
 
 export const TransactionStatusModal = () => {
-  const { type, setType, transactionState, transaction } = useModalContext();
-  const { chainId } = useWeb3Context();
-  const renderTransitionState = () => {
-    const isLight = useLight();
+  const { type, setType, transactionState, transaction } = useModalContext()
+  const { chainId } = useWeb3Context()
 
-    const chain = Chains.getInfo(chainId);
+  const { setRefresh } = useVaultDataContext()
+
+  useEffect(() => {
+    if (transactionState === 'SUCCESS') {
+      setRefresh(true)
+    }
+  }, [transactionState])
+
+  const renderTransitionState = () => {
+    const isLight = useLight()
+
+    const chain = Chains[chainId]
 
     switch (transactionState) {
-      case "PENDING":
+      case 'PENDING':
         return (
-          <Box sx={{ textAlign: "center" }}>
+          <Box sx={{ textAlign: 'center' }}>
             <Typography variant="subtitle1" color="text.secondary" mb={1}>
               Pending Transaction
             </Typography>
@@ -34,7 +46,7 @@ export const TransactionStatusModal = () => {
 
             <MuiLink
               target="_blank"
-              href={`${chain.scanUrl}${
+              href={`${chain.scan_url}${
                 (transaction as ContractTransaction).hash
               }`}
             >
@@ -42,46 +54,50 @@ export const TransactionStatusModal = () => {
                 variant="contained"
                 sx={{ color: formatColor(neutral.white) }}
               >
-                View on {chain.scanSite}
+                View on {chain.scan_site}
               </Button>
             </MuiLink>
           </Box>
-        );
+        )
 
-      case "SUCCESS":
+      case 'SUCCESS':
         return (
-          <Box sx={{ textAlign: "center" }}>
+          <Box sx={{ textAlign: 'center' }}>
             <Typography variant="subtitle1" color="text.secondary" mb={1}>
               Successful Transaction
             </Typography>
 
-            <Box
-              component="img"
-              my={3}
-              height={30}
+            <SVGBox
+              svg_name="ip_green"
               width={30}
-              src="images/ip_green.svg"
-            ></Box>
+              height={30}
+              alt="ip_green"
+              sx={{ my: 3, mx: 'auto' }}
+            />
 
             <MuiLink
               target="_blank"
-              href={`${chain.scanUrl}${
+              href={`${chain.scan_url}${
                 (transaction as ContractReceipt).transactionHash
               }`}
             >
               <Button
                 variant="contained"
-                sx={{ color: formatColor(neutral.white) }}
+                sx={{
+                  color: formatColor(neutral.white),
+                  display: 'block',
+                  margin: 'auto',
+                }}
               >
-                View on {chain.scanSite}
+                View on {chain.scan_site}
               </Button>
             </MuiLink>
           </Box>
-        );
+        )
 
-      case "FAILURE":
+      case 'FAILURE':
         return (
-          <Box sx={{ textAlign: "center" }}>
+          <Box sx={{ textAlign: 'center' }}>
             <Typography variant="subtitle1" color="text.secondary" mb={1}>
               Failed Transaction
             </Typography>
@@ -97,7 +113,7 @@ export const TransactionStatusModal = () => {
             </Box>
             <MuiLink
               target="_blank"
-              href={`${chain.scanUrl}${
+              href={`${chain.scan_url}${
                 (transaction as ContractReceipt).transactionHash
               }`}
             >
@@ -105,14 +121,14 @@ export const TransactionStatusModal = () => {
                 variant="contained"
                 sx={{ color: formatColor(neutral.white) }}
               >
-                View on {chain.scanSite}
+                View on {chain.scan_site}
               </Button>
             </MuiLink>
           </Box>
-        );
+        )
 
       default:
-        <Box sx={{ textAlign: "center" }}>
+        ;<Box sx={{ textAlign: 'center' }}>
           <Typography variant="subtitle1" color="text.secondary" mb={1}>
             Error
           </Typography>
@@ -133,24 +149,24 @@ export const TransactionStatusModal = () => {
           >
             Please try again later
           </Button>
-        </Box>;
-        break;
+        </Box>
+        break
     }
-  };
+  }
 
   return (
     <BaseModal
       open={type === ModalType.TransactionStatus}
       setOpen={() => {
-        setType(null);
+        setType(null)
       }}
       contentMaxWidth={400}
     >
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           mb: 2.5,
           mt: 4,
           rowGap: 2,
@@ -159,5 +175,5 @@ export const TransactionStatusModal = () => {
         {renderTransitionState()}
       </Box>
     </BaseModal>
-  );
-};
+  )
+}

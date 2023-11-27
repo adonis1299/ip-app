@@ -14,10 +14,21 @@ type VoteModalProps = {
   votingPower: number
   setOpen: (val: boolean) => void
   signer: JsonRpcSigner
+  isOptimistic: boolean
+  hasPriorVotes: boolean
 }
 
 export const VoteModal: React.FC<VoteModalProps> = (props: VoteModalProps) => {
-  const { open, setOpen, id, totalVotes, signer, votingPower } = props
+  const {
+    open,
+    setOpen,
+    id,
+    totalVotes,
+    signer,
+    votingPower,
+    isOptimistic = false,
+    hasPriorVotes,
+  } = props
   const { updateTransactionState } = useModalContext()
   const [error, setError] = useState('')
 
@@ -35,14 +46,16 @@ export const VoteModal: React.FC<VoteModalProps> = (props: VoteModalProps) => {
     } catch (err) {
       const error = err as ContractReceipt
 
-      setError(JSON.parse(JSON.stringify(error)).reason)
+      setError(JSON.parse(JSON.stringify(error)).message)
       updateTransactionState(error)
     }
   }
 
   return (
     <BaseModal open={open} withCloseButton setOpen={setOpen}>
-      <Typography variant="h6_semi">Vote for Proposal {id}</Typography>
+      <Typography variant="h6_semi">
+        Vote for Proposal {id} {isOptimistic ? '- Optimistic' : ''}
+      </Typography>
       <Box mt={1}>
         <Typography variant="label2_medium">
           {totalVotes.toLocaleString()} Votes Submitted
@@ -50,34 +63,59 @@ export const VoteModal: React.FC<VoteModalProps> = (props: VoteModalProps) => {
       </Box>
 
       <Box my={2}>
-        <Typography variant="body3">
+        <Typography variant="body3" fontWeight={400}>
           Your voting power: {votingPower.toLocaleString()}
+        </Typography>
+
+        <Typography
+          variant="label"
+          fontWeight={400}
+          color="red"
+          display={hasPriorVotes ? 'none' : 'block'}
+          mt={2}
+        >
+          Your voting power at the start of the proposal was 0 so you are not
+          able to vote on this proposal.
         </Typography>
       </Box>
       <Button
         variant="contained"
-        sx={{ color: formatColor(neutral.white) }}
+        sx={{
+          color: formatColor(neutral.white),
+          display: isOptimistic ? 'none' : 'block',
+          width: '100%',
+        }}
         onClick={() => castVoteHandler(1)}
+        disabled={!hasPriorVotes}
       >
-        Yes
+        For
       </Button>
 
       <Button
         variant="contained"
         sx={{
+          width: '100%',
           backgroundColor: 'misc.blackWhite',
           color: 'misc.whiteBlack',
           my: 2,
         }}
         onClick={() => castVoteHandler(0)}
+        disabled={!hasPriorVotes}
       >
-        No
+        Against
       </Button>
 
       <Button
         variant="text"
-        sx={{ color: 'text.primary', paddingRight: 0 }}
+        sx={{
+          border: '1px solid',
+          borderColor: 'misc.blackWhite',
+          color: 'text.primary',
+          fontSize: 14,
+          '&.Mui-disabled': { color: 'text.secondary' },
+        }}
         onClick={() => castVoteHandler(2)}
+        disabled={!hasPriorVotes}
       >
         Abstain
       </Button>

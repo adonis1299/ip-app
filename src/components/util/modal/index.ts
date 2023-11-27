@@ -1,5 +1,4 @@
 export * from "./BaseModal";
-export * from "./WalletModal";
 export * from "./DepositWithdrawUSDCModal";
 export * from "./DepositUSDCConfirmationModal";
 export * from "./WithdrawUSDCConfirmationModal";
@@ -9,5 +8,6 @@ export * from "./DepositCollateralConfirmationModal";
 export * from "./WithdrawCollateralConfirmationModal";
 export * from "./BorrowRepayModal";
 export * from "./DelegateModal";
+export * from "./UndelegateModal";
 export * from "./TransactionStatusModal";
 export * from "./DelegateIPTModal";

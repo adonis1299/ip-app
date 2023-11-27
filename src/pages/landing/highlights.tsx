@@ -1,5 +1,6 @@
 import { Typography } from '@mui/material'
 import { Box } from '@mui/system'
+import SVGBox from '../../components/icons/misc/SVGBox'
 import { formatColor, neutral } from '../../theme'
 export const Highlights: React.FC = () => {
   return (
@@ -31,19 +32,21 @@ export const Highlights: React.FC = () => {
           }}
         >
           <Typography
-            display={{ xs: 'inline-block', md: 'inline' }}
+            display={{ xs: 'inline', md: 'inline' }}
             variant="h4"
             color={formatColor(neutral.gray2)}
           >
-            IP's stablecoin USDi
+            Interest Protocol's stablecoin USDi{' '}
+            <Typography
+              display={{ xs: 'inline', md: 'inline-block' }}
+              variant="h4"
+              color={formatColor(neutral.black)}
+            >
+              is scalable, over-collateralized, and accrues yield without
+              staking.
+            </Typography>
           </Typography>
-          <Typography
-            display={{ xs: 'inline-block', md: 'inline' }}
-            variant="h4"
-            color={formatColor(neutral.black)}
-          >
-            is scalable, over-collateralized, and accrues yield without staking.
-          </Typography>
+
           <Box sx={{ flexBasis: '100%' }} />
         </Box>
         <Box
@@ -107,16 +110,15 @@ const HighlightBox = (props: { icon: any; header: string; copy: string }) => {
         gap: 4,
       }}
     >
-      <Box
+      <SVGBox
+        svg_name={icon}
         sx={{
           background: formatColor(neutral.gray5),
           height: 140,
           width: 140,
           borderRadius: '50%',
         }}
-        component="img"
-        src={`images/${icon}.svg`}
-      ></Box>
+      />
 
       <Typography
         variant="h4"
@@ -127,7 +129,7 @@ const HighlightBox = (props: { icon: any; header: string; copy: string }) => {
       </Typography>
 
       <Typography
-        variant="body3"
+        variant="h7_semi"
         sx={{
           color: formatColor(neutral.gray2),
           textAlign: { xs: 'center', md: 'center' },

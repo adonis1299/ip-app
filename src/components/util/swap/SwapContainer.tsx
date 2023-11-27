@@ -13,6 +13,7 @@ import {
   useModalContext,
   ModalType,
 } from '../../libs/modal-content-provider/ModalContentProvider'
+import { Chains } from '../../../chain/chains'
 
 export const SwapContainer = () => {
   const isLight = useLight()
@@ -21,9 +22,8 @@ export const SwapContainer = () => {
 
   const [token1, token2, swapTokenPositions] = useSwapTokenContext()
   const { setIsWalletModalOpen } = useWalletModalContext()
-  const { setType, USDC, updateUSDC } = useModalContext()
-
-  const { connected } = useWeb3Context()
+  const { setType, updateUSDC } = useModalContext()
+  const { connected, chainId } = useWeb3Context()
 
   const [
     token1Amount,
@@ -34,13 +34,35 @@ export const SwapContainer = () => {
   ] = useTokenAmountInput()
 
   const swapTokens = () => {
-    if (token1.ticker === 'USDC') {
-      updateUSDC('amountToWithdraw', token1Amount)
-    } else {
-      updateUSDC('amountToDeposit', token1Amount)
-    }
+    // if (token1.ticker === 'USDC') {
+    //   updateUSDC('amountToWithdraw', token1Amount)
+    // } else {
+    //   updateUSDC('amountToDeposit', token1Amount)
+    // }
     swapTokenAmount()
     swapTokenPositions()
+    updateUSDC('maxDeposit', false)
+    updateUSDC('maxWithdraw', false)
+  }
+
+  const token1MaxBalance = () => {
+    if (token1.ticker === 'USDC') {
+      updateUSDC('maxDeposit', true)
+    } else {
+      updateUSDC('maxWithdraw', true)
+    }
+  }
+
+  const token1Input = (amount: string) => {
+    setToken1Amount(amount)
+    updateUSDC('maxDeposit', false)
+    updateUSDC('maxWithdraw', false)
+  }
+
+  const token2Input = (amount: string) => {
+    setToken2Amount(amount)
+    updateUSDC('maxDeposit', false)
+    updateUSDC('maxWithdraw', false)
   }
 
   useEffect(() => {
@@ -49,17 +71,17 @@ export const SwapContainer = () => {
     } else {
       updateUSDC('amountToWithdraw', token1Amount)
     }
-  }, [token1Amount])
+  }, [token1Amount, token1])
 
   return (
-    <Box>
+    <>
       <Box
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
           columnGap: 2,
           rowGap: 1,
-          mb: 2,
+          mb: 3,
           borderRadius: 2,
           position: 'relative',
           [theme.breakpoints.down('md')]: {
@@ -70,7 +92,8 @@ export const SwapContainer = () => {
         <TokenSelect
           token={token1}
           tokenAmount={token1Amount}
-          setTokenAmount={setToken1Amount}
+          setTokenAmount={token1Input}
+          onMaxBalanceClick={token1MaxBalance}
         />
 
         <Button
@@ -99,7 +122,7 @@ export const SwapContainer = () => {
           onClick={swapTokens}
         >
           <ForwardIcon
-            strokecolor={
+            stroke={
               isLight ? formatColor(neutral.black) : formatColor(neutral.white)
             }
             sx={{
@@ -115,7 +138,8 @@ export const SwapContainer = () => {
         <TokenSelect
           token={token2}
           tokenAmount={token2Amount}
-          setTokenAmount={setToken2Amount}
+          setTokenAmount={token2Input}
+          disableSetMax={true}
         />
       </Box>
 
@@ -123,35 +147,47 @@ export const SwapContainer = () => {
         token1.ticker === 'USDC' ? (
           <Button
             variant="contained"
-            sx={{ color: formatColor(neutral.white) }}
-            disabled={Number(token1Amount) <= 0 || !token1.wallet_balance}
+            sx={{
+              backgroundColor: 'button.mintRedeem',
+              color: formatColor(neutral.white),
+              width: '100%',
+            }}
+            disabled={Number(token1Amount) <= 0 || !token1.wallet_balance || !Chains[chainId]}
             onClick={() => {
               if (Number(token1Amount) > 0) {
                 setType(ModalType.DepositUSDCConfirmation)
               }
             }}
           >
-            Deposit
+            Mint USDi
           </Button>
         ) : (
           <Button
             variant="contained"
-            sx={{ color: formatColor(neutral.white) }}
-            disabled={!token1.wallet_balance || Number(token1Amount) <= 0}
+            sx={{
+              backgroundColor: 'button.mintRedeem',
+              color: formatColor(neutral.white),
+              width: '100%',
+            }}
+            disabled={!token1.wallet_balance || Number(token1Amount) <= 0 || !Chains[chainId]}
             onClick={() => setType(ModalType.WithdrawUSDCConfirmation)}
           >
-            Withdraw
+            Redeem USDi
           </Button>
         )
       ) : (
         <Button
           variant="contained"
           onClick={() => setIsWalletModalOpen(true)}
-          sx={{ color: formatColor(neutral.white) }}
+          sx={{
+            backgroundColor: 'button.mintRedeem',
+            color: formatColor(neutral.white),
+            width: '100%',
+          }}
         >
           Connect Wallet
         </Button>
       )}
-    </Box>
+    </>
   )
 }
